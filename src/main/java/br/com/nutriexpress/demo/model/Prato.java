@@ -1,20 +1,11 @@
 package br.com.nutriexpress.demo.model;
 
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
-@NoArgsConstructor
-@AllArgsConstructor
-@Getter
-@Setter
 public class Prato {
     
     @Id
@@ -28,10 +19,78 @@ public class Prato {
     private Boolean disponivel;
     private Long categoriaId;
 
+    public Prato() {
+    }
+
+    public Prato(Long id, String nome, String descricao, Double preco, Integer calorias, Boolean disponivel, Long categoriaId) {
+        this.id = id;
+        this.nome = nome;
+        this.descricao = descricao;
+        this.preco = preco;
+        this.calorias = calorias;
+        this.disponivel = disponivel;
+        this.categoriaId = categoriaId;
+    }
+
     public Prato(String nome, String descricao, Double preco) {
         this.nome = nome;
         this.descricao = descricao;
         this.preco = preco;
     }
 
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public void setNome(String nome) {
+        this.nome = nome;
+    }
+
+    public String getDescricao() {
+        return descricao;
+    }
+
+    public void setDescricao(String descricao) {
+        this.descricao = descricao;
+    }
+
+    public Double getPreco() {
+        return preco;
+    }
+
+    public void setPreco(Double preco) {
+        this.preco = preco;
+    }
+
+    public Integer getCalorias() {
+        return calorias;
+    }
+
+    public void setCalorias(Integer calorias) {
+        this.calorias = calorias;
+    }
+
+    public Boolean getDisponivel() {
+        return disponivel;
+    }
+
+    public void setDisponivel(Boolean disponivel) {
+        this.disponivel = disponivel;
+    }
+
+    public Long getCategoriaId() {
+        return categoriaId;
+    }
+
+    public void setCategoriaId(Long categoriaId) {
+        this.categoriaId = categoriaId;
+    }
 }
