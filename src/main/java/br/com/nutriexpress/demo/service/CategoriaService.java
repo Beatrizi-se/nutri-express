@@ -2,24 +2,21 @@ package br.com.nutriexpress.demo.service;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import br.com.nutriexpress.demo.repository.CategoriaRepository;
-import br.dtos.categoria.CategoriaRequestDTO;
-import jakarta.transaction.Transactional;
+import br.com.nutriexpress.demo.dto.categoria.CategoriaRequestDTO;
+import br.com.nutriexpress.demo.exception.RegraNegocioException;
+import br.com.nutriexpress.demo.exception.ResourceNotFoundException;
 import br.com.nutriexpress.demo.model.Categoria;
+import br.com.nutriexpress.demo.repository.CategoriaRepository;
 
- /**
- * o @Service Indica que esta classe é um serviço do Spring
- * é importante para que o Spring possa gerenciar a instância da classe e injetá-la em outros componentes, 
- * como controladores.
+/**
+ * Camada de serviço responsável pelas regras de negócio de Categoria.
  */
 @Service
 public class CategoriaService {
 
-    // O @Autowired é usado para injetar automaticamente a dependência do CategoriaRepository na classe CategoriaService.
-    @Autowired
     private final CategoriaRepository repository;
 
     public CategoriaService(CategoriaRepository repository) {
@@ -31,17 +28,20 @@ public class CategoriaService {
     }
 
     public Categoria getCategoriaById(Long id) {
-        return repository.findById(id).orElseThrow(() -> new RuntimeException("Categoria não encontrada com o ID: " + id));
+        return repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada com o ID: " + id));
     }
 
-    /* O @Transactional indica que este método deve ser executado em uma transação */
     @Transactional
     public Categoria criarCategoria(CategoriaRequestDTO cat) {
-        
+        // Validação de regra de negócio: não permitir nomes duplicados
+        if (repository.existsByNomeIgnoreCase(cat.nome())) {
+            throw new RegraNegocioException("Já existe uma categoria cadastrada com o nome: " + cat.nome());
+        }
+
         Categoria categoria = new Categoria();
-        
-        categoria.setNome(cat.getNome());
-        categoria.setDescricao(cat.getDescricao());
+        categoria.setNome(cat.nome());
+        categoria.setDescricao(cat.descricao());
 
         return repository.save(categoria);
     }
@@ -49,10 +49,15 @@ public class CategoriaService {
     @Transactional
     public Categoria atualizarCategoria(Long id, CategoriaRequestDTO cat) {
         Categoria categoriaExistente = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Categoria não encontrada com o ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada com o ID: " + id));
 
-        categoriaExistente.setNome(cat.getNome());
-        categoriaExistente.setDescricao(cat.getDescricao());
+        // Validação: não permitir duplicidade com outra categoria diferente desta
+        if (repository.existsByNomeIgnoreCaseAndIdNot(cat.nome(), id)) {
+            throw new RegraNegocioException("Já existe outra categoria cadastrada com o nome: " + cat.nome());
+        }
+
+        categoriaExistente.setNome(cat.nome());
+        categoriaExistente.setDescricao(cat.descricao());
 
         return repository.save(categoriaExistente);
     }
@@ -60,9 +65,8 @@ public class CategoriaService {
     @Transactional
     public void deletarCategoria(Long id) {
         Categoria categoriaExistente = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Categoria não encontrada com o ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Categoria não encontrada com o ID: " + id));
 
         repository.delete(categoriaExistente);
-    
     }
 }
