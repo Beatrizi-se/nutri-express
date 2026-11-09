@@ -240,4 +240,8 @@ Para estudantes e desenvolvedores que desejam se aprofundar nos conceitos teóri
 
 ## 👩‍💻 Autoria e Aprendizado
 
-Desenvolvido por **Bia** como parte da jornada de estudos em Ciência da Computação e Engenharia de Software Backend com o ecossistema Spring Boot e Java.
+Projeto desenvolvido e aprimorado por **Ana Beatriz Sotero Oliveira**, como parte da minha jornada acadêmica em Ciência da Computação e do aprofundamento em desenvolvimento backend com Java e Spring Boot.
+
+O Nutri Express teve como ponto de partida um projeto-base disponibilizado pelo meu professor de Back-end em contexto acadêmico. A partir dessa base, desenvolvi minha própria versão, realizando estudos, implementações, melhorias estruturais, testes e documentação técnica.
+
+Este repositório representa meu processo de aprendizado e evolução prática, com foco em arquitetura backend, APIs REST, persistência de dados, regras de negócio e boas práticas de desenvolvimento.
