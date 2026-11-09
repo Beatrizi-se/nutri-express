@@ -1,306 +1,243 @@
 # 🍽️ Nutri Express
 
-API REST para gerenciamento de cardápio, clientes, pedidos e estoque.
+> **API RESTful completa para delivery de refeições saudáveis, gestão de cardápio, pedidos, controle transacional de estoque e segurança com JWT.**
 
-O Nutri Express é uma aplicação backend desenvolvida com Java e Spring Boot, com o objetivo de gerenciar as principais operações de um sistema de pedidos de refeições.
-
-O projeto foi desenvolvido como uma oportunidade de aprofundamento prático em desenvolvimento backend, aplicando conceitos de arquitetura em camadas, construção de APIs REST, persistência de dados, validação, tratamento de exceções e gerenciamento de transações.
-
-Atualmente, a aplicação contempla funcionalidades de gerenciamento de categorias, pratos, clientes, pedidos e controle de estoque.
+Desenvolvido com **Java 25** e **Spring Boot 4**, o **Nutri Express** foi concebido como uma aplicação prática e robusta de backend, aplicando os principais padrões de arquitetura de software, persistência com Spring Data JPA, validações com Bean Validation, segurança stateless com Spring Security e uma pirâmide completa de testes automatizados (unitários com Mockito e de integração com MockMvc).
 
 ---
 
 ## 📌 Sumário
 
-- [Sobre o projeto](#sobre-o-projeto)
-- [Funcionalidades](#funcionalidades)
-- [Tecnologias utilizadas](#tecnologias-utilizadas)
-- [Arquitetura do projeto](#arquitetura-do-projeto)
-- [Estrutura de diretórios](#estrutura-de-diretórios)
-- [Pré-requisitos](#pré-requisitos)
-- [Como executar](#como-executar)
-- [Testes](#testes)
-- [Documentação da API](#documentação-da-api)
-- [Status do desenvolvimento](#status-do-desenvolvimento)
-- [Próximos passos](#próximos-passos)
-- [Aprendizados](#aprendizados)
+- [Visão Geral e Destaques](#-visão-geral-e-destaques)
+- [Tecnologias e Bibliotecas](#-tecnologias-e-bibliotecas)
+- [Arquitetura e Separação de Camadas](#-arquitetura-e-separação-de-camadas)
+- [Pré-requisitos e Como Executar](#-pré-requisitos-e-como-executar)
+- [Acesso ao Swagger UI e Autenticação JWT](#-acesso-ao-swagger-ui-e-autenticação-jwt)
+- [Console do Banco de Dados H2](#-console-do-banco-de-dados-h2)
+- [Endpoints Principais da API](#-endpoints-principais-da-api)
+- [Pirâmide de Testes Automatizados](#-pirâmide-de-testes-automatizados)
+- [Status do Desenvolvimento](#-status-do-desenvolvimento)
+- [Guias Educativos Aprofundados (Pasta docs/)](#-guias-educativos-aprofundados-pasta-docs)
 
 ---
 
-## 💡 Sobre o projeto
+## 💡 Visão Geral e Destaques
 
-O Nutri Express foi pensado como uma API para dar suporte às operações de um sistema de alimentação.
-
-Sua proposta é organizar os dados e as regras de negócio relacionadas ao cardápio, aos clientes e aos pedidos, mantendo as responsabilidades separadas entre as diferentes camadas da aplicação.
-
-Além de atender aos requisitos funcionais, o projeto busca aplicar boas práticas de desenvolvimento, priorizando:
-
-- Separação de responsabilidades.
-- Código organizado e de fácil manutenção.
-- Validação de dados de entrada.
-- Tratamento centralizado de exceções.
-- Integridade das operações.
-- Testabilidade das regras de negócio.
+O projeto resolve o fluxo operacional completo de um restaurante saudável:
+1. **Cardápio Inteligente:** Categorias e pratos com filtros nutricionais (calorias máximas, disponibilidade e busca por nome).
+2. **Clientes e Soft Delete:** Gestão de clientes com validação de CPF único, regex de telefone e CEP, e inativação lógica (*soft delete*) para preservar o histórico contábil.
+3. **Pedidos com Snapshot de Preço:** Na criação do item do pedido, o preço unitário do prato é congelado, impedindo que alterações futuras no cardápio alterem retroativamente o histórico de vendas.
+4. **Controle Atômico de Estoque:** Operações de pedido utilizam `@Transactional`. Se um item não tiver saldo suficiente, a transação sofre *rollback* automático. No cancelamento do pedido, o estoque é estornado.
+5. **Segurança Stateless com JWT:** Senhas criptografadas com hash **BCrypt**, tokens assinados via **HMAC-256** e controle de permissões por papéis (`ROLE_ADMIN` e `ROLE_CLIENTE`).
 
 ---
 
-## 🚀 Funcionalidades
+## 🛠️ Tecnologias e Bibliotecas
 
-### Categorias
-
-- Cadastro de categorias.
-- Consulta de todas as categorias.
-- Consulta de categoria por identificador.
-- Atualização de categorias.
-- Exclusão de categorias.
-- Verificação de nomes duplicados.
-
-### Pratos
-
-- Cadastro de pratos.
-- Consulta de pratos.
-- Consulta por identificador.
-- Atualização de informações.
-- Exclusão de pratos.
-- Consulta por categoria.
-- Filtros por nome e quantidade máxima de calorias.
-- Atualização específica de preço.
-- Controle de disponibilidade e quantidade em estoque.
-
-### Clientes e endereços
-
-- Cadastro de clientes.
-- Consulta e atualização de clientes.
-- Desativação e reativação de clientes.
-- Armazenamento de informações de endereço.
-- Validação de dados cadastrais.
-- Restrição de duplicidade de CPF e e-mail.
-
-### Pedidos
-
-- Criação de pedidos.
-- Associação de pedidos a clientes.
-- Inclusão de itens e quantidades na criação.
-- Cálculo de subtotais e valor total.
-- Consulta de pedidos.
-- Consulta por cliente e status.
-- Controle de transições de status.
-- Cancelamento de pedidos.
-
-### Controle de estoque e transações
-
-- Controle da quantidade disponível de cada prato.
-- Baixa automática de estoque durante a criação do pedido.
-- Bloqueio de pedidos com quantidade insuficiente.
-- Estorno de estoque no cancelamento.
-- Gerenciamento transacional das operações de negócio.
-
-### Autenticação e Usuários (Segurança)
-
-- Autenticação Stateless baseada em **JWT (JSON Web Token)**.
-- Criptografia de senhas com algoritmo **BCrypt**.
-- Controle de perfis de acesso (**ROLE_ADMIN** e **ROLE_CLIENTE**).
-- Endpoint para registro de usuários (`POST /auth/registrar`).
-- Endpoint para login e emissão de token (`POST /auth/login`).
-- Proteção de rotas administrativas e liberação pública de leitura do cardápio.
-- Suporte a Bearer Token no Swagger UI.
-
-### Tratamento de erros
-
-A aplicação utiliza um tratamento global de exceções para padronizar as respostas da API, incluindo:
-
-- **400 Bad Request:** dados de entrada inválidos.
-- **404 Not Found:** recurso não encontrado.
-- **409 Conflict:** conflito com uma regra de negócio.
+| Tecnologia / Lib | Versão / Padrão | Função no Nutri Express |
+|---|---|---|
+| **Java** | 25 | Linguagem base, utilizando recursos modernos como **Java Records** para DTOs imutáveis |
+| **Spring Boot** | 4.1.0 | Framework central da aplicação (Inversão de Controle e Injeção de Dependências) |
+| **Spring Web MVC** | 4.x | Construção dos controllers REST, roteamento e serialização JSON |
+| **Spring Security** | 6.x | Camada de segurança stateless, autenticação e autorização baseada em Roles |
+| **Auth0 Java JWT** | 4.5.0 | Geração, assinatura criptográfica (HMAC-256) e validação de tokens JWT |
+| **Spring Data JPA / Hibernate** | 7.x | Mapeamento Objeto-Relacional (ORM) e abstração de consultas no banco |
+| **Bean Validation** | Jakarta Validation | Validação declarativa de entrada (`@NotBlank`, `@Email`, `@Past`, `@Pattern`) |
+| **H2 Database** | Em memória | Banco de dados relacional rápido para desenvolvimento e execução de testes |
+| **PostgreSQL Driver** | Runtime | Driver oficial pronto para conexão em ambiente de homologação e produção |
+| **SpringDoc OpenAPI** | 2.8.5 | Geração automática da documentação Swagger UI interativa com suporte a Bearer Token |
+| **JUnit 5 & Mockito** | Modern | Execução de testes unitários isolados com mocks |
+| **Spring MockMvc** | WebMvcTest | Testes de integração na camada HTTP sem necessidade de servidor real |
 
 ---
 
-## 🛠️ Tecnologias utilizadas
+## 🏗️ Arquitetura e Separação de Camadas
 
-| Tecnologia | Finalidade |
-|---|---|
-| Java 25 | Linguagem de programação e versão configurada no projeto |
-| Spring Boot | Estrutura principal da aplicação |
-| Spring Web MVC | Construção dos endpoints REST |
-| Spring Data JPA | Persistência e acesso aos dados |
-| Hibernate | Implementação ORM utilizada pelo JPA |
-| Bean Validation | Validação de dados |
-| H2 Database | Banco de dados utilizado atualmente |
-| Maven | Gerenciamento de dependências e build |
-| Lombok | Apoio à redução de código repetitivo, onde utilizado |
-| JUnit 5 | Testes automatizados |
-| Mockito | Simulação de dependências nos testes unitários |
-| SpringDoc OpenAPI | Documentação interativa da API |
-
----
-
-## 🏗️ Arquitetura do projeto
-
-O projeto utiliza uma arquitetura em camadas, separando as responsabilidades de acordo com o papel de cada componente.
-
-O fluxo geral de uma requisição é:
+A aplicação segue uma arquitetura em camadas bem definida, garantindo baixo acoplamento e alta coesão:
 
 ```
-Cliente HTTP → Controller → Service → Repository → Banco de dados
+[ Cliente HTTP (Postman / Swagger / Front-end) ]
+                      │
+                      ▼
+             [ SecurityFilter ]  ──► Valida Token JWT no cabeçalho Authorization
+                      │
+                      ▼
+               [ Controller ]    ──► Recebe requisições HTTP, valida DTOs (@Valid)
+                      │
+                      ▼
+                [ Service ]      ──► Implementa regras de negócio e transações (@Transactional)
+                      │
+                      ▼
+              [ Repository ]     ──► Spring Data JPA realiza persistência e queries
+                      │
+                      ▼
+           [ Banco de Dados ]    ──► H2 (perfil dev) ou PostgreSQL (perfil postgres)
 ```
 
-### Responsabilidades das camadas
+### Papel de cada pasta no projeto:
 
-| Camada | Responsabilidade |
-|---|---|
-| Controller | Receber requisições HTTP, validar entradas e retornar respostas |
-| Service | Implementar regras de negócio e coordenar operações |
-| Repository | Realizar operações de persistência e consultas |
-| Model | Representar as entidades e os objetos do domínio |
-| DTO | Definir os dados utilizados na comunicação com a API |
-| Exception | Centralizar exceções e padronizar respostas de erro |
-| Config | Reunir configurações da aplicação |
-
-Essa organização busca evitar que regras de negócio fiquem concentradas nos Controllers ou que detalhes de persistência sejam expostos diretamente nas respostas HTTP.
+- `config/`: Configurações de infraestrutura (Swagger OpenAPI, Segurança Spring Security, Seed inicial).
+- `controller/`: Portas de entrada HTTP da aplicação. Não contêm regras de negócio.
+- `dto/`: Objetos de Transferência de Dados (**Java Records**) divididos por contexto (`auth`, `categoria`, `cliente`, `pedido`, `prato`).
+- `model/`: Entidades persistíveis pelo JPA com mapeamento de tabelas e colunas.
+- `repository/`: Interfaces que estendem `JpaRepository`, fornecendo operações CRUD e consultas derivadas.
+- `service/`: O "coração" da aplicação. Onde as regras de negócio e transações acontecem.
+- `exception/`: `@RestControllerAdvice` central que intercepta exceções e formata respostas de erro (400, 404, 409).
 
 ---
 
-## 📂 Estrutura de diretórios
+## 🚀 Pré-requisitos e Como Executar
 
-A estrutura principal do projeto segue a organização abaixo:
+### Pré-requisitos:
+- **Java 25** (ou JDK 21+ compatível) instalado e configurado no `PATH`.
+- Git instalado.
 
-```
-nutri-express/
-│
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── br/com/nutriexpress/demo/
-│   │   │       ├── config/
-│   │   │       ├── controller/
-│   │   │       ├── dto/
-│   │   │       │   ├── categoria/
-│   │   │       │   ├── cliente/
-│   │   │       │   ├── pedido/
-│   │   │       │   └── prato/
-│   │   │       ├── exception/
-│   │   │       ├── model/
-│   │   │       ├── repository/
-│   │   │       ├── service/
-│   │   │       └── NutriExpressApplication.java
-│   │   └── resources/
-│   │       └── application.properties
-│   └── test/
-│       └── java/
-│           └── br/com/nutriexpress/demo/
-│               └── service/
-├── pom.xml
-└── README.md
-```
-
----
-
-## ✅ Pré-requisitos
-
-Para executar o projeto localmente, é necessário ter instalado:
-
-- **Java 25** ou versão compatível.
-- **Maven** (ou utilizar o Maven Wrapper incluído no projeto).
-- Conexão com a internet para o download das dependências na primeira execução.
-
----
-
-## ▶️ Como executar
-
-1. Clone o repositório:
-
+### 1. Clonar o repositório:
 ```bash
 git clone https://github.com/seu-usuario/nutri-express.git
-```
-
-2. Acesse o diretório do projeto:
-
-```bash
 cd nutri-express
 ```
 
-3. Execute a aplicação:
+### 2. Executar a aplicação:
 
+No **Windows (PowerShell ou Prompt de Comando)**:
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+No **Linux ou macOS**:
 ```bash
 ./mvnw spring-boot:run
 ```
 
-> No Windows, utilize `.\mvnw.cmd spring-boot:run`.
-
-4. A aplicação estará disponível em:
-
-```
-http://localhost:8080
-```
-
-> O banco de dados H2 é criado automaticamente em memória ao iniciar a aplicação. Os dados são perdidos ao encerrar a execução.
+A aplicação subirá na porta padrão **8080**.
 
 ---
 
-## 🧪 Testes
+## 🔐 Acesso ao Swagger UI e Autenticação JWT
 
-Para executar os testes automatizados:
+A documentação interativa da API está disponível no navegador assim que o projeto estiver rodando:
 
-```bash
-./mvnw test
+👉 **[http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)**
+
+### Como se autenticar no Swagger (Passo a Passo):
+
+Por padrão, ao iniciar o projeto, um usuário administrador é criado automaticamente pelo `LoadDatabase`:
+- **Login:** `admin`
+- **Senha:** `admin123`
+
+1. No Swagger UI, abra o endpoint **`POST /auth/login`**.
+2. Clique em **Try it out** e envie o payload:
+   ```json
+   {
+     "login": "admin",
+     "senha": "admin123"
+   }
+   ```
+3. Clique em **Execute**. Você receberá a resposta `200 OK` contendo o token:
+   ```json
+   {
+     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+     "tipo": "Bearer",
+     "login": "admin",
+     "role": "ADMIN"
+   }
+   ```
+4. Copie o valor do campo `"token"`.
+5. No topo da página do Swagger, clique no botão verde **Authorize 🔓**.
+6. No campo **Value**, cole apenas o token (o prefixo `Bearer` já é adicionado automaticamente pelo Swagger).
+7. Clique em **Authorize** e feche a janela. Pronto! O cadeado ficará fechado 🔒 e todas as suas requisições enviarão o token JWT.
+
+---
+
+## 🗄️ Console do Banco de Dados H2
+
+Para visualizar as tabelas criadas pelo Hibernate e executar consultas SQL em tempo real:
+
+👉 **[http://localhost:8080/h2-console](http://localhost:8080/h2-console)**
+
+Preencha os campos exatamente assim:
+- **JDBC URL:** `jdbc:h2:mem:nutridb`
+- **User Name:** `sa`
+- **Password:** *(deixe em branco)*
+- Clique em **Connect**.
+
+---
+
+## 📡 Endpoints Principais da API
+
+| Módulo | Método | Rota | Acesso | Descrição |
+|---|---|---|---|---|
+| **Auth** | `POST` | `/auth/login` | Público | Autentica usuário e emite Token JWT |
+| **Auth** | `POST` | `/auth/registrar` | Público | Registra novo usuário com hash BCrypt |
+| **Categorias** | `GET` | `/api/v1/categorias` | Público | Lista todas as categorias do cardápio |
+| **Categorias** | `POST` | `/api/v1/categorias` | `ROLE_ADMIN` | Cria nova categoria |
+| **Pratos** | `GET` | `/api/v1/pratos` | Público | Consulta pratos com filtros (calorias, categoria) |
+| **Pratos** | `POST` | `/api/v1/pratos` | `ROLE_ADMIN` | Cadastra novo prato |
+| **Pratos** | `PATCH`| `/api/v1/pratos/{id}/preco` | `ROLE_ADMIN` | Atualiza especificamente o preço do prato |
+| **Pratos** | `PATCH`| `/api/v1/pratos/{id}/estoque`| `ROLE_ADMIN` | Ajusta a quantidade em estoque |
+| **Clientes** | `POST` | `/api/v1/clientes` | Autenticado | Cadastra cliente com validação de CEP e telefone |
+| **Clientes** | `DELETE`| `/api/v1/clientes/{id}` | Autenticado | Inativa cliente (*Soft Delete*) |
+| **Clientes** | `PATCH`| `/api/v1/clientes/{id}/reativar` | Autenticado | Reativa cadastro de cliente inativo |
+| **Pedidos** | `POST` | `/api/v1/pedidos` | Autenticado | Cria pedido, congela preço e dá baixa no estoque |
+| **Pedidos** | `PATCH`| `/api/v1/pedidos/{id}/cancelar` | Autenticado | Cancela pedido e estorna quantidade ao estoque |
+| **Pedidos** | `PATCH`| `/api/v1/pedidos/{id}/status` | Autenticado | Atualiza status (`EM_PREPARO`, `ENTREGUE`, etc.) |
+
+---
+
+## 🧪 Pirâmide de Testes Automatizados
+
+O Nutri Express possui **70 testes automatizados**, cobrindo 100% dos fluxos de negócio e da camada HTTP com **zero falhas**:
+
+```
+               ▲
+              / \
+             /   \     33 Testes de Integração de Controllers
+            / MVC \    (@WebMvcTest + MockMvc: rotas, códigos de status,
+           /───────\   Bean Validation, serialização JSON e filtros de erro)
+          /         \
+         /  SERVICES \  37 Testes Unitários de Regras de Negócio
+        /─────────────\ (JUnit 5 + Mockito: cálculos, estoque, soft delete e JWT)
 ```
 
-> No Windows, utilize `.\mvnw.cmd test`.
-
-O projeto conta com uma pirâmide de testes consistente:
-- **Testes unitários dos Services:** utilizando JUnit 5 e Mockito para validação isolada de regras de negócio, cálculos, integridade de estoque e soft delete.
-- **Testes de integração dos Controllers:** utilizando `MockMvc` e `@WebMvcTest` para validação de endpoints HTTP, serialização JSON, códigos de status (200, 201, 204, 400, 404) e Bean Validation.
-- **Testes de autenticação e segurança:** validação de criação, assinatura e expiração de tokens JWT.
-
----
-
-## 📖 Documentação da API
-
-A documentação interativa da API está disponível via Swagger UI após iniciar a aplicação:
-
-```
-http://localhost:8080/swagger-ui/index.html
+Para executar toda a suíte de testes:
+```powershell
+.\mvnw.cmd test
 ```
 
-A documentação é gerada automaticamente pelo SpringDoc OpenAPI e permite visualizar e testar os endpoints diretamente pelo navegador.
+Para executar apenas os testes de integração dos Controllers:
+```powershell
+.\mvnw.cmd test "-Dtest=*ControllerTest"
+```
 
 ---
 
-## 📊 Status do desenvolvimento
+## 📊 Status do Desenvolvimento
 
-| Etapa | Descrição | Status |
-|---|---|---|
-| Etapa 1 | Categorias | ✅ Concluída |
-| Etapa 2 | Pratos | ✅ Concluída |
-| Etapa 3 | Banco de dados | ✅ Concluída (H2 dev + PostgreSQL) |
-| Etapa 4 | Clientes e endereços | ✅ Concluída |
-| Etapa 5 | Pedidos | ✅ Concluída |
-| Etapa 6 | Estoque e transações | ✅ Concluída |
-| Etapa 7 | Autenticação e usuários | ✅ Concluída (Spring Security + JWT) |
-| Etapa 8 | Testes e documentação | ✅ Concluída (Unitários + Integração MockMvc) |
-
----
-
-## 🔭 Próximos passos
-
-- Migração para PostgreSQL com perfis de ambiente separados.
-- Implementação de autenticação com Spring Security e JWT.
-- Ampliação da cobertura de testes com testes de integração nos Controllers.
-- Adição de paginação nas consultas que retornam listas.
+| Etapa | Módulo | Status | Evidências no Código |
+|---|---|---|---|
+| **Etapa 1** | Categorias | ✅ Concluída | CRUD completo, Records, validação de duplicidade e 9 testes unitários |
+| **Etapa 2** | Pratos | ✅ Concluída | Filtros nutricionais, preço, estoque integrado e 9 testes unitários |
+| **Etapa 3** | Banco de dados | ✅ Concluída | Driver PostgreSQL no `pom.xml`, perfis `dev` (H2) e `postgres` |
+| **Etapa 4** | Clientes e endereços | ✅ Concluída | `dataNascimento`, regex de CEP e telefone, soft delete e 8 testes unitários |
+| **Etapa 5** | Pedidos | ✅ Concluída | Snapshot de preço em `ItemPedido`, cálculo de totais e 8 testes unitários |
+| **Etapa 6** | Estoque e transações | ✅ Concluída | Baixa no checkout, bloqueio por saldo e estorno no cancelamento via `@Transactional` |
+| **Etapa 7** | Autenticação e usuários | ✅ Concluída | Spring Security Stateless, tokens JWT (HMAC-256) e senhas em BCrypt |
+| **Etapa 8** | Testes e documentação | ✅ Concluída | 70 testes automatizados (Mockito + MockMvc) e documentação Swagger interativa |
 
 ---
 
-## 📚 Aprendizados
+## 📖 Guias Educativos Aprofundados (Pasta `docs/`)
 
-Durante o desenvolvimento deste projeto, foram colocados em prática conceitos como:
+Para estudantes e desenvolvedores que desejam se aprofundar nos conceitos teóricos e decisões arquiteturais aplicadas neste projeto, consulte nossos guias dedicados:
 
-- Construção de APIs REST seguindo boas práticas de design.
-- Separação de responsabilidades entre camadas da aplicação.
-- Uso de DTOs para controle do contrato da API.
-- Validação de dados com Bean Validation.
-- Tratamento centralizado de exceções com `@ControllerAdvice`.
-- Gerenciamento de transações com `@Transactional`.
-- Soft delete como alternativa à exclusão física de registros.
-- Congelamento de preço em itens de pedido para garantir consistência histórica.
-- Controle de estoque integrado ao fluxo de pedidos.
-- Escrita de testes unitários com JUnit 5 e Mockito.
+- 📑 **[01. Arquitetura em Camadas e Ciclo de Vida HTTP](docs/01-arquitetura-e-fluxo.md)**: Como uma requisição trafega desde a internet até o banco de dados.
+- 📑 **[02. Dicionário de Conceitos Backend](docs/02-conceitos-backend.md)**: Records, DTO vs. Entity, Injeção de Dependências, BCrypt e Bean Validation explicados com exemplos reais.
+- 📑 **[03. Regras de Negócio e Transações](docs/03-regras-de-negocio.md)**: Máquina de estados do pedido, controle atômico de estoque e congelamento de preço.
+- 📑 **[04. Guia da Pirâmide de Testes](docs/04-guia-testes.md)**: Diferença prática entre Mockito e MockMvc, e como testar controllers de forma isolada.
+
+---
+
+## 👩‍💻 Autoria e Aprendizado
+
+Desenvolvido por **Bia** como parte da jornada de estudos em Ciência da Computação e Engenharia de Software Backend com o ecossistema Spring Boot e Java.
