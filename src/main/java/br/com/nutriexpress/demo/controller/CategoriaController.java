@@ -15,12 +15,15 @@ import br.com.nutriexpress.demo.model.Categoria;
 import br.com.nutriexpress.demo.service.CategoriaService;
 import br.com.nutriexpress.demo.dto.categoria.CategoriaRequestDTO;
 import br.com.nutriexpress.demo.dto.categoria.CategoriaResponseDTO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/categorias")
+@Tag(name = "Categorias", description = "Gerenciamento das categorias do cardápio")
 public class CategoriaController {
 
     private final CategoriaService categoriaService;

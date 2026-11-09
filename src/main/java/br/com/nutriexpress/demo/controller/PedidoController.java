@@ -18,10 +18,13 @@ import br.com.nutriexpress.demo.dto.pedido.PedidoResponseDTO;
 import br.com.nutriexpress.demo.model.Pedido;
 import br.com.nutriexpress.demo.model.StatusPedido;
 import br.com.nutriexpress.demo.service.PedidoService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/pedidos")
+@Tag(name = "Pedidos", description = "Fluxo de checkout, itens e máquina de status")
 public class PedidoController {
 
     private final PedidoService pedidoService;

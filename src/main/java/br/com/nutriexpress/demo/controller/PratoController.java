@@ -19,10 +19,13 @@ import br.com.nutriexpress.demo.dto.prato.PratoRequestDTO;
 import br.com.nutriexpress.demo.dto.prato.PratoResponseDTO;
 import br.com.nutriexpress.demo.model.Prato;
 import br.com.nutriexpress.demo.service.PratoService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/pratos")
+@Tag(name = "Pratos", description = "Gerenciamento, filtros de cardápio e controle de estoque")
 public class PratoController {
 
     private final PratoService pratoService;

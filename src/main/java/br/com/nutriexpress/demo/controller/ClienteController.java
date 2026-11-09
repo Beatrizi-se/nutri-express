@@ -19,10 +19,13 @@ import br.com.nutriexpress.demo.dto.cliente.ClienteRequestDTO;
 import br.com.nutriexpress.demo.dto.cliente.ClienteResponseDTO;
 import br.com.nutriexpress.demo.model.Cliente;
 import br.com.nutriexpress.demo.service.ClienteService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/clientes")
+@Tag(name = "Clientes", description = "Gerenciamento de clientes, endereços e soft delete")
 public class ClienteController {
 
     private final ClienteService clienteService;
