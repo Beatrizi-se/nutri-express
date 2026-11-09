@@ -2,6 +2,7 @@ package br.com.nutriexpress.demo.dto.cliente;
 
 import br.com.nutriexpress.demo.model.Endereco;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 public record EnderecoDTO(
     @NotBlank(message = "O logradouro é obrigatório")
@@ -19,6 +20,7 @@ public record EnderecoDTO(
     String cidade,
 
     @NotBlank(message = "O CEP é obrigatório")
+    @Pattern(regexp = "^\\d{5}-?\\d{3}$", message = "O CEP deve estar no formato 00000-000 ou 00000000")
     String cep
 ) {
     public EnderecoDTO(Endereco endereco) {

@@ -1,5 +1,6 @@
 package br.com.nutriexpress.demo.service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,7 +39,7 @@ class ClienteServiceTest {
     @BeforeEach
     void setUp() {
         Endereco endereco = new Endereco("Rua das Flores", "123", "Apto 4", "Centro", "São Paulo", "01001-000");
-        clienteExemplo = new Cliente(1L, "Maria Silva", "maria@email.com", "12345678901", "11999998888", true, endereco);
+        clienteExemplo = new Cliente(1L, "Maria Silva", "maria@email.com", "12345678901", "11999998888", LocalDate.of(1995, 5, 20), true, endereco);
         enderecoDTO = new EnderecoDTO("Rua das Flores", "123", "Apto 4", "Centro", "São Paulo", "01001-000");
     }
 
@@ -78,7 +79,7 @@ class ClienteServiceTest {
     @Test
     @DisplayName("Deve cadastrar cliente com sucesso quando email e cpf forem unicos")
     void criarCliente_ComSucesso() {
-        ClienteRequestDTO request = new ClienteRequestDTO("João Souza", "joao@email.com", "98765432100", "11988887777", enderecoDTO);
+        ClienteRequestDTO request = new ClienteRequestDTO("João Souza", "joao@email.com", "98765432100", "11988887777", LocalDate.of(1990, 1, 15), enderecoDTO);
 
         when(repository.existsByEmail("joao@email.com")).thenReturn(false);
         when(repository.existsByCpf("98765432100")).thenReturn(false);
@@ -93,6 +94,7 @@ class ClienteServiceTest {
         assertNotNull(criado);
         assertEquals(2L, criado.getId());
         assertEquals("João Souza", criado.getNome());
+        assertEquals(LocalDate.of(1990, 1, 15), criado.getDataNascimento());
         assertTrue(criado.getAtivo());
         verify(repository, times(1)).save(any(Cliente.class));
     }
@@ -100,7 +102,7 @@ class ClienteServiceTest {
     @Test
     @DisplayName("Deve lançar RegraNegocioException ao tentar cadastrar cliente com email duplicado")
     void criarCliente_EmailDuplicado_DeveLancarExcecao() {
-        ClienteRequestDTO request = new ClienteRequestDTO("João Souza", "maria@email.com", "98765432100", "11988887777", enderecoDTO);
+        ClienteRequestDTO request = new ClienteRequestDTO("João Souza", "maria@email.com", "98765432100", "11988887777", LocalDate.of(1990, 1, 15), enderecoDTO);
 
         when(repository.existsByEmail("maria@email.com")).thenReturn(true);
 
@@ -112,7 +114,7 @@ class ClienteServiceTest {
     @Test
     @DisplayName("Deve lançar RegraNegocioException ao tentar cadastrar cliente com CPF duplicado")
     void criarCliente_CpfDuplicado_DeveLancarExcecao() {
-        ClienteRequestDTO request = new ClienteRequestDTO("João Souza", "joao@email.com", "12345678901", "11988887777", enderecoDTO);
+        ClienteRequestDTO request = new ClienteRequestDTO("João Souza", "joao@email.com", "12345678901", "11988887777", LocalDate.of(1990, 1, 15), enderecoDTO);
 
         when(repository.existsByEmail("joao@email.com")).thenReturn(false);
         when(repository.existsByCpf("12345678901")).thenReturn(true);

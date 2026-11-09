@@ -67,6 +67,7 @@ public class ClienteService {
         cliente.setEmail(dto.email());
         cliente.setCpf(dto.cpf());
         cliente.setTelefone(dto.telefone());
+        cliente.setDataNascimento(dto.dataNascimento());
         cliente.setAtivo(true);
         cliente.setEndereco(dto.endereco().toEntity());
 
@@ -90,6 +91,7 @@ public class ClienteService {
         clienteExistente.setEmail(dto.email());
         clienteExistente.setCpf(dto.cpf());
         clienteExistente.setTelefone(dto.telefone());
+        clienteExistente.setDataNascimento(dto.dataNascimento());
         clienteExistente.setEndereco(dto.endereco().toEntity());
 
         return repository.save(clienteExistente);

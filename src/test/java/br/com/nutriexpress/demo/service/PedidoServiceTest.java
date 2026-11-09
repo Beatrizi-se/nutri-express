@@ -1,5 +1,6 @@
 package br.com.nutriexpress.demo.service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,8 +53,8 @@ class PedidoServiceTest {
     @BeforeEach
     void setUp() {
         Endereco endereco = new Endereco("Av. Paulista", "1000", null, "Bela Vista", "São Paulo", "01310-100");
-        clienteAtivo = new Cliente(1L, "Carlos Lima", "carlos@email.com", "11122233344", "11987654321", true, endereco);
-        clienteInativo = new Cliente(2L, "Ana Inativa", "ana@email.com", "55566677788", "11912345678", false, endereco);
+        clienteAtivo = new Cliente(1L, "Carlos Lima", "carlos@email.com", "11122233344", "11987654321", LocalDate.of(1990, 1, 1), true, endereco);
+        clienteInativo = new Cliente(2L, "Ana Inativa", "ana@email.com", "55566677788", "11912345678", LocalDate.of(1992, 2, 2), false, endereco);
 
         pratoDisponivel = new Prato(10L, "Salada Fit", "Salada completa", 25.0, 200, true, 1L, 10);
         pratoIndisponivel = new Prato(20L, "Suco Esgotado", "Indisponível hoje", 12.0, 100, false, 2L, 0);

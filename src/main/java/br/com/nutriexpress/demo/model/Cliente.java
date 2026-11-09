@@ -1,5 +1,7 @@
 package br.com.nutriexpress.demo.model;
 
+import java.time.LocalDate;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
@@ -25,6 +27,8 @@ public class Cliente {
 
     private String telefone;
 
+    private LocalDate dataNascimento;
+
     @Column(nullable = false)
     private Boolean ativo = true;
 
@@ -34,12 +38,13 @@ public class Cliente {
     public Cliente() {
     }
 
-    public Cliente(Long id, String nome, String email, String cpf, String telefone, Boolean ativo, Endereco endereco) {
+    public Cliente(Long id, String nome, String email, String cpf, String telefone, LocalDate dataNascimento, Boolean ativo, Endereco endereco) {
         this.id = id;
         this.nome = nome;
         this.email = email;
         this.cpf = cpf;
         this.telefone = telefone;
+        this.dataNascimento = dataNascimento;
         this.ativo = ativo != null ? ativo : true;
         this.endereco = endereco;
     }
@@ -82,6 +87,14 @@ public class Cliente {
 
     public void setTelefone(String telefone) {
         this.telefone = telefone;
+    }
+
+    public LocalDate getDataNascimento() {
+        return dataNascimento;
+    }
+
+    public void setDataNascimento(LocalDate dataNascimento) {
+        this.dataNascimento = dataNascimento;
     }
 
     public Boolean getAtivo() {
