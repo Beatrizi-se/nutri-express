@@ -95,6 +95,16 @@ Além de atender aos requisitos funcionais, o projeto busca aplicar boas prátic
 - Estorno de estoque no cancelamento.
 - Gerenciamento transacional das operações de negócio.
 
+### Autenticação e Usuários (Segurança)
+
+- Autenticação Stateless baseada em **JWT (JSON Web Token)**.
+- Criptografia de senhas com algoritmo **BCrypt**.
+- Controle de perfis de acesso (**ROLE_ADMIN** e **ROLE_CLIENTE**).
+- Endpoint para registro de usuários (`POST /auth/registrar`).
+- Endpoint para login e emissão de token (`POST /auth/login`).
+- Proteção de rotas administrativas e liberação pública de leitura do cardápio.
+- Suporte a Bearer Token no Swagger UI.
+
 ### Tratamento de erros
 
 A aplicação utiliza um tratamento global de exceções para padronizar as respostas da API, incluindo:
@@ -263,7 +273,7 @@ A documentação é gerada automaticamente pelo SpringDoc OpenAPI e permite visu
 | Etapa 4 | Clientes e endereços | ✅ Concluída |
 | Etapa 5 | Pedidos | ✅ Concluída |
 | Etapa 6 | Estoque e transações | ✅ Concluída |
-| Etapa 7 | Autenticação e usuários | ⏳ Não iniciada |
+| Etapa 7 | Autenticação e usuários | ✅ Concluída (Spring Security + JWT) |
 | Etapa 8 | Testes e documentação | 🔄 Parcial |
 
 ---
