@@ -259,7 +259,7 @@ A documentação é gerada automaticamente pelo SpringDoc OpenAPI e permite visu
 |---|---|---|
 | Etapa 1 | Categorias | ✅ Concluída |
 | Etapa 2 | Pratos | ✅ Concluída |
-| Etapa 3 | Banco de dados | 🔄 Parcial (H2 em uso) |
+| Etapa 3 | Banco de dados | ✅ Concluída (H2 dev + PostgreSQL) |
 | Etapa 4 | Clientes e endereços | ✅ Concluída |
 | Etapa 5 | Pedidos | ✅ Concluída |
 | Etapa 6 | Estoque e transações | ✅ Concluída |
