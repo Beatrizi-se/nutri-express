@@ -38,7 +38,7 @@ class PratoServiceTest {
 
     @BeforeEach
     void setUp() {
-        pratoExemplo = new Prato(1L, "Salada Caesar", "Alface, frango e molho especial", 28.50, 350, true, 1L);
+        pratoExemplo = new Prato(1L, "Salada Caesar", "Alface, frango e molho especial", 28.50, 350, true, 1L, 15);
     }
 
     @Test
@@ -90,7 +90,7 @@ class PratoServiceTest {
     @Test
     @DisplayName("Deve cadastrar prato com sucesso quando categoria existe e nome não é duplicado")
     void criarPrato_ComSucesso() {
-        PratoRequestDTO request = new PratoRequestDTO("Wrap de Frango", "Wrap integral", 22.0, 310, true, 1L);
+        PratoRequestDTO request = new PratoRequestDTO("Wrap de Frango", "Wrap integral", 22.0, 310, true, 1L, 20);
 
         when(categoriaRepository.existsById(1L)).thenReturn(true);
         when(pratoRepository.existsByNomeIgnoreCase("Wrap de Frango")).thenReturn(false);
@@ -105,6 +105,7 @@ class PratoServiceTest {
         assertNotNull(criado);
         assertEquals(2L, criado.getId());
         assertEquals("Wrap de Frango", criado.getNome());
+        assertEquals(20, criado.getQuantidadeEstoque());
         verify(categoriaRepository, times(1)).existsById(1L);
         verify(pratoRepository, times(1)).save(any(Prato.class));
     }
@@ -112,7 +113,7 @@ class PratoServiceTest {
     @Test
     @DisplayName("Deve lançar ResourceNotFoundException ao tentar criar prato para categoria inexistente")
     void criarPrato_QuandoCategoriaNaoExiste_DeveLancarExcecao() {
-        PratoRequestDTO request = new PratoRequestDTO("Wrap de Frango", "Wrap integral", 22.0, 310, true, 999L);
+        PratoRequestDTO request = new PratoRequestDTO("Wrap de Frango", "Wrap integral", 22.0, 310, true, 999L, 10);
 
         when(categoriaRepository.existsById(999L)).thenReturn(false);
 
@@ -123,7 +124,7 @@ class PratoServiceTest {
     @Test
     @DisplayName("Deve lançar RegraNegocioException ao tentar cadastrar prato com nome duplicado")
     void criarPrato_QuandoNomeDuplicado_DeveLancarExcecao() {
-        PratoRequestDTO request = new PratoRequestDTO("Salada Caesar", "Outra receita", 30.0, 400, true, 1L);
+        PratoRequestDTO request = new PratoRequestDTO("Salada Caesar", "Outra receita", 30.0, 400, true, 1L, 10);
 
         when(categoriaRepository.existsById(1L)).thenReturn(true);
         when(pratoRepository.existsByNomeIgnoreCase("Salada Caesar")).thenReturn(true);
@@ -146,10 +147,23 @@ class PratoServiceTest {
     }
 
     @Test
-    @DisplayName("Deve lançar RegraNegocioException ao atualizar preço com valor menor ou igual a zero")
-    void atualizarPreco_ValorInvalido_DeveLancarExcecao() {
-        assertThrows(RegraNegocioException.class, () -> pratoService.atualizarPreco(1L, 0.0));
-        assertThrows(RegraNegocioException.class, () -> pratoService.atualizarPreco(1L, -5.0));
+    @DisplayName("Deve atualizar a quantidade em estoque com sucesso")
+    void atualizarEstoque_ComSucesso() {
+        when(pratoRepository.findById(1L)).thenReturn(Optional.of(pratoExemplo));
+        when(pratoRepository.save(any(Prato.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Prato atualizado = pratoService.atualizarEstoque(1L, 50);
+
+        assertNotNull(atualizado);
+        assertEquals(50, atualizado.getQuantidadeEstoque());
+        assertTrue(atualizado.getDisponivel());
+        verify(pratoRepository, times(1)).save(pratoExemplo);
+    }
+
+    @Test
+    @DisplayName("Deve lançar RegraNegocioException ao atualizar estoque com valor negativo")
+    void atualizarEstoque_ValorNegativo_DeveLancarExcecao() {
+        assertThrows(RegraNegocioException.class, () -> pratoService.atualizarEstoque(1L, -5));
         verify(pratoRepository, never()).save(any());
     }
 

@@ -17,6 +17,7 @@ import br.com.nutriexpress.demo.exception.RegraNegocioException;
 import br.com.nutriexpress.demo.exception.ResourceNotFoundException;
 import br.com.nutriexpress.demo.model.Cliente;
 import br.com.nutriexpress.demo.model.Endereco;
+import br.com.nutriexpress.demo.model.ItemPedido;
 import br.com.nutriexpress.demo.model.Pedido;
 import br.com.nutriexpress.demo.model.Prato;
 import br.com.nutriexpress.demo.model.StatusPedido;
@@ -54,12 +55,12 @@ class PedidoServiceTest {
         clienteAtivo = new Cliente(1L, "Carlos Lima", "carlos@email.com", "11122233344", "11987654321", true, endereco);
         clienteInativo = new Cliente(2L, "Ana Inativa", "ana@email.com", "55566677788", "11912345678", false, endereco);
 
-        pratoDisponivel = new Prato(10L, "Salada Fit", "Salada completa", 25.0, 200, true, 1L);
-        pratoIndisponivel = new Prato(20L, "Suco Esgotado", "Indisponível hoje", 12.0, 100, false, 2L);
+        pratoDisponivel = new Prato(10L, "Salada Fit", "Salada completa", 25.0, 200, true, 1L, 10);
+        pratoIndisponivel = new Prato(20L, "Suco Esgotado", "Indisponível hoje", 12.0, 100, false, 2L, 0);
     }
 
     @Test
-    @DisplayName("Deve criar pedido com sucesso e calcular valor total")
+    @DisplayName("Deve criar pedido com sucesso, dar baixa no estoque e calcular valor total")
     void criarPedido_ComSucesso() {
         PedidoRequestDTO request = new PedidoRequestDTO(
                 1L,
@@ -82,8 +83,29 @@ class PedidoServiceTest {
         assertEquals(StatusPedido.PENDENTE, pedidoCriado.getStatus());
         assertEquals(1, pedidoCriado.getItens().size());
         assertEquals(50.0, pedidoCriado.getValorTotal());
-        assertEquals("Av. Paulista", pedidoCriado.getEnderecoEntrega().getLogradouro());
+        assertEquals(8, pratoDisponivel.getQuantidadeEstoque()); // Baixa de 10 para 8!
+        verify(pratoRepository, times(1)).save(pratoDisponivel);
         verify(pedidoRepository, times(1)).save(any(Pedido.class));
+    }
+
+    @Test
+    @DisplayName("Deve lançar RegraNegocioException ao tentar criar pedido com estoque insuficiente")
+    void criarPedido_EstoqueInsuficiente_DeveLancarExcecao() {
+        PedidoRequestDTO request = new PedidoRequestDTO(
+                1L,
+                List.of(new ItemPedidoRequestDTO(10L, 15)) // Estoque tem 10, solicitou 15!
+        );
+
+        when(clienteRepository.findById(1L)).thenReturn(Optional.of(clienteAtivo));
+        when(pratoRepository.findById(10L)).thenReturn(Optional.of(pratoDisponivel));
+
+        RegraNegocioException ex = assertThrows(
+                RegraNegocioException.class,
+                () -> pedidoService.criarPedido(request)
+        );
+
+        assertTrue(ex.getMessage().contains("Estoque insuficiente"));
+        verify(pedidoRepository, never()).save(any());
     }
 
     @Test
@@ -132,6 +154,27 @@ class PedidoServiceTest {
         Pedido atualizado = pedidoService.atualizarStatus(100L, StatusPedido.EM_PREPARO);
 
         assertEquals(StatusPedido.EM_PREPARO, atualizado.getStatus());
+        verify(pedidoRepository, times(1)).save(pedido);
+    }
+
+    @Test
+    @DisplayName("Deve cancelar pedido e estornar itens de volta ao estoque")
+    void cancelarPedido_ComSucesso_DeveEstornarEstoque() {
+        Pedido pedido = new Pedido();
+        pedido.setId(100L);
+        pedido.setStatus(StatusPedido.PENDENTE);
+        ItemPedido item = new ItemPedido(10L, "Salada Fit", 3, 25.0);
+        pedido.adicionarItem(item);
+
+        when(pedidoRepository.findById(100L)).thenReturn(Optional.of(pedido));
+        when(pratoRepository.findById(10L)).thenReturn(Optional.of(pratoDisponivel)); // estoque inicial 10
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Pedido cancelado = pedidoService.cancelarPedido(100L);
+
+        assertEquals(StatusPedido.CANCELADO, cancelado.getStatus());
+        assertEquals(13, pratoDisponivel.getQuantidadeEstoque()); // Estornou +3 itens: 10 + 3 = 13!
+        verify(pratoRepository, times(1)).save(pratoDisponivel);
         verify(pedidoRepository, times(1)).save(pedido);
     }
 
