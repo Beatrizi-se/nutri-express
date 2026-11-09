@@ -1,5 +1,6 @@
 package br.com.nutriexpress.demo.model;
 
+import br.com.nutriexpress.demo.exception.RegraNegocioException;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -18,11 +19,12 @@ public class Prato {
     private Integer calorias;
     private Boolean disponivel;
     private Long categoriaId;
+    private Integer quantidadeEstoque = 0;
 
     public Prato() {
     }
 
-    public Prato(Long id, String nome, String descricao, Double preco, Integer calorias, Boolean disponivel, Long categoriaId) {
+    public Prato(Long id, String nome, String descricao, Double preco, Integer calorias, Boolean disponivel, Long categoriaId, Integer quantidadeEstoque) {
         this.id = id;
         this.nome = nome;
         this.descricao = descricao;
@@ -30,12 +32,38 @@ public class Prato {
         this.calorias = calorias;
         this.disponivel = disponivel;
         this.categoriaId = categoriaId;
+        this.quantidadeEstoque = quantidadeEstoque != null ? quantidadeEstoque : 0;
+    }
+
+    public Prato(Long id, String nome, String descricao, Double preco, Integer calorias, Boolean disponivel, Long categoriaId) {
+        this(id, nome, descricao, preco, calorias, disponivel, categoriaId, 0);
     }
 
     public Prato(String nome, String descricao, Double preco) {
         this.nome = nome;
         this.descricao = descricao;
         this.preco = preco;
+        this.quantidadeEstoque = 0;
+    }
+
+    public void decrementarEstoque(int qtd) {
+        if (this.quantidadeEstoque == null || this.quantidadeEstoque < qtd) {
+            throw new RegraNegocioException("Estoque insuficiente para o prato: " + this.nome);
+        }
+        this.quantidadeEstoque -= qtd;
+        if (this.quantidadeEstoque == 0) {
+            this.disponivel = false;
+        }
+    }
+
+    public void incrementarEstoque(int qtd) {
+        if (this.quantidadeEstoque == null) {
+            this.quantidadeEstoque = 0;
+        }
+        this.quantidadeEstoque += qtd;
+        if (this.quantidadeEstoque > 0) {
+            this.disponivel = true;
+        }
     }
 
     public Long getId() {
@@ -92,5 +120,13 @@ public class Prato {
 
     public void setCategoriaId(Long categoriaId) {
         this.categoriaId = categoriaId;
+    }
+
+    public Integer getQuantidadeEstoque() {
+        return quantidadeEstoque;
+    }
+
+    public void setQuantidadeEstoque(Integer quantidadeEstoque) {
+        this.quantidadeEstoque = quantidadeEstoque;
     }
 }

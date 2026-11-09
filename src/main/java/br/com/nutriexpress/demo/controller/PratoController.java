@@ -27,19 +27,10 @@ public class PratoController {
 
     private final PratoService pratoService;
 
-    // Injeção de dependência via construtor
     public PratoController(PratoService pratoService) {
         this.pratoService = pratoService;
     }
 
-    /**
-     * Listagem com suporte a filtros dinâmicos via Query Parameters:
-     * - /api/v1/pratos
-     * - /api/v1/pratos?categoriaId=1
-     * - /api/v1/pratos?nome=Frango
-     * - /api/v1/pratos?caloriasMaximas=500
-     * - /api/v1/pratos?apenasDisponiveis=true
-     */
     @GetMapping
     public ResponseEntity<List<PratoResponseDTO>> listarPratos(
             @RequestParam(required = false) Long categoriaId,
@@ -93,6 +84,14 @@ public class PratoController {
             @PathVariable Long id,
             @RequestParam Double preco) {
         Prato pratoAtualizado = pratoService.atualizarPreco(id, preco);
+        return ResponseEntity.ok(new PratoResponseDTO(pratoAtualizado));
+    }
+
+    @PatchMapping("/{id}/estoque")
+    public ResponseEntity<PratoResponseDTO> atualizarEstoque(
+            @PathVariable Long id,
+            @RequestParam Integer quantidade) {
+        Prato pratoAtualizado = pratoService.atualizarEstoque(id, quantidade);
         return ResponseEntity.ok(new PratoResponseDTO(pratoAtualizado));
     }
 

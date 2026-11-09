@@ -19,7 +19,7 @@ import br.com.nutriexpress.demo.repository.PedidoRepository;
 import br.com.nutriexpress.demo.repository.PratoRepository;
 
 /**
- * Camada de serviço responsável pelo fluxo de pedidos (Checkout).
+ * Camada de serviço responsável pelo fluxo de pedidos (Checkout) e integração com Estoque.
  */
 @Service
 public class PedidoService {
@@ -57,12 +57,13 @@ public class PedidoService {
     }
 
     /**
-     * Orquestração do Checkout:
+     * Orquestração do Checkout com Baixa Automática de Estoque:
      * 1. Valida se o cliente existe e se está ativo (Soft Delete)
-     * 2. Captura o endereço de entrega atual do cliente
-     * 3. Valida se cada prato existe e está disponível
-     * 4. Congela o preço unitário histórico de cada item
-     * 5. Calcula subtotais e o total geral
+     * 2. Captura o snapshot do endereço de entrega
+     * 3. Valida pratos disponíveis e quantidade em estoque
+     * 4. Dá baixa automática no estoque de cada prato
+     * 5. Congela o preço unitário histórico de cada item
+     * 6. Calcula subtotais e o total geral
      */
     @Transactional
     public Pedido criarPedido(PedidoRequestDTO dto) {
@@ -85,6 +86,10 @@ public class PedidoService {
             if (!Boolean.TRUE.equals(prato.getDisponivel())) {
                 throw new RegraNegocioException("O prato '" + prato.getNome() + "' não está disponível para pedidos.");
             }
+
+            // Baixa automática de estoque (lança RegraNegocioException se o estoque for insuficiente)
+            prato.decrementarEstoque(itemDto.quantidade());
+            pratoRepository.save(prato);
 
             ItemPedido item = new ItemPedido(
                     prato.getId(),
@@ -114,8 +119,26 @@ public class PedidoService {
         return pedidoRepository.save(pedido);
     }
 
+    /**
+     * Cancelamento de pedido com estorno automático de estoque
+     */
     @Transactional
     public Pedido cancelarPedido(Long id) {
-        return atualizarStatus(id, StatusPedido.CANCELADO);
+        Pedido pedido = buscarPorId(id);
+
+        if (pedido.getStatus() == StatusPedido.ENTREGUE || pedido.getStatus() == StatusPedido.CANCELADO) {
+            throw new RegraNegocioException("Não é possível cancelar um pedido que já foi finalizado como " + pedido.getStatus());
+        }
+
+        // Estorno automático dos itens para o estoque
+        for (ItemPedido item : pedido.getItens()) {
+            pratoRepository.findById(item.getPratoId()).ifPresent(prato -> {
+                prato.incrementarEstoque(item.getQuantidade());
+                pratoRepository.save(prato);
+            });
+        }
+
+        pedido.setStatus(StatusPedido.CANCELADO);
+        return pedidoRepository.save(pedido);
     }
 }

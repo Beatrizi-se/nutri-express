@@ -24,5 +24,13 @@ public record PratoRequestDTO(
     Boolean disponivel,
 
     @NotNull(message = "O ID da categoria é obrigatório")
-    Long categoriaId
-) {}
+    Long categoriaId,
+
+    @PositiveOrZero(message = "A quantidade em estoque não pode ser negativa")
+    Integer quantidadeEstoque
+) {
+    // Construtor de compatibilidade caso quantidadeEstoque seja omitida
+    public PratoRequestDTO(String nome, String descricao, Double preco, Integer calorias, Boolean disponivel, Long categoriaId) {
+        this(nome, descricao, preco, calorias, disponivel, categoriaId, 0);
+    }
+}

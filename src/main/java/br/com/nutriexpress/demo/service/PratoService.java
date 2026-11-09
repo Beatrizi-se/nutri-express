@@ -13,7 +13,7 @@ import br.com.nutriexpress.demo.repository.CategoriaRepository;
 import br.com.nutriexpress.demo.repository.PratoRepository;
 
 /**
- * Camada de serviço responsável pelas regras de negócio de Prato.
+ * Camada de serviço responsável pelas regras de negócio e controle de estoque de Prato.
  */
 @Service
 public class PratoService {
@@ -21,7 +21,6 @@ public class PratoService {
     private final PratoRepository pratoRepository;
     private final CategoriaRepository categoriaRepository;
 
-    // Injeção de dependências via construtor
     public PratoService(PratoRepository pratoRepository, CategoriaRepository categoriaRepository) {
         this.pratoRepository = pratoRepository;
         this.categoriaRepository = categoriaRepository;
@@ -57,22 +56,24 @@ public class PratoService {
 
     @Transactional
     public Prato criarPrato(PratoRequestDTO dto) {
-        // Regra 1: Validar se a categoria informada existe no banco
         if (!categoriaRepository.existsById(dto.categoriaId())) {
             throw new ResourceNotFoundException("Não é possível cadastrar o prato: Categoria não encontrada com o ID: " + dto.categoriaId());
         }
 
-        // Regra 2: Impedir cadastro de pratos com nomes duplicados
         if (pratoRepository.existsByNomeIgnoreCase(dto.nome())) {
             throw new RegraNegocioException("Já existe um prato cadastrado com o nome: " + dto.nome());
         }
+
+        int estoque = dto.quantidadeEstoque() != null ? dto.quantidadeEstoque() : 0;
+        boolean disponivel = dto.disponivel() != null ? dto.disponivel() : (estoque > 0);
 
         Prato prato = new Prato();
         prato.setNome(dto.nome());
         prato.setDescricao(dto.descricao());
         prato.setPreco(dto.preco());
         prato.setCalorias(dto.calorias());
-        prato.setDisponivel(dto.disponivel() != null ? dto.disponivel() : true);
+        prato.setQuantidadeEstoque(estoque);
+        prato.setDisponivel(disponivel);
         prato.setCategoriaId(dto.categoriaId());
 
         return pratoRepository.save(prato);
@@ -82,12 +83,10 @@ public class PratoService {
     public Prato atualizarPrato(Long id, PratoRequestDTO dto) {
         Prato pratoExistente = buscarPorId(id);
 
-        // Regra 1: Validar se a nova categoria existe
         if (!categoriaRepository.existsById(dto.categoriaId())) {
             throw new ResourceNotFoundException("Não é possível atualizar o prato: Categoria não encontrada com o ID: " + dto.categoriaId());
         }
 
-        // Regra 2: Impedir duplicação de nome com outro prato diferente deste
         if (pratoRepository.existsByNomeIgnoreCaseAndIdNot(dto.nome(), id)) {
             throw new RegraNegocioException("Já existe outro prato cadastrado com o nome: " + dto.nome());
         }
@@ -96,6 +95,12 @@ public class PratoService {
         pratoExistente.setDescricao(dto.descricao());
         pratoExistente.setPreco(dto.preco());
         pratoExistente.setCalorias(dto.calorias());
+        if (dto.quantidadeEstoque() != null) {
+            pratoExistente.setQuantidadeEstoque(dto.quantidadeEstoque());
+            if (dto.quantidadeEstoque() == 0) {
+                pratoExistente.setDisponivel(false);
+            }
+        }
         if (dto.disponivel() != null) {
             pratoExistente.setDisponivel(dto.disponivel());
         }
@@ -112,6 +117,28 @@ public class PratoService {
 
         Prato pratoExistente = buscarPorId(id);
         pratoExistente.setPreco(novoPreco);
+
+        return pratoRepository.save(pratoExistente);
+    }
+
+    /**
+     * Ajuste manual de estoque pelo administrador
+     */
+    @Transactional
+    public Prato atualizarEstoque(Long id, Integer novaQuantidade) {
+        if (novaQuantidade == null || novaQuantidade < 0) {
+            throw new RegraNegocioException("A quantidade em estoque não pode ser negativa");
+        }
+
+        Prato pratoExistente = buscarPorId(id);
+        pratoExistente.setQuantidadeEstoque(novaQuantidade);
+
+        // Se reabasteceu, torna disponível; se zerou, torna indisponível
+        if (novaQuantidade > 0 && !Boolean.TRUE.equals(pratoExistente.getDisponivel())) {
+            pratoExistente.setDisponivel(true);
+        } else if (novaQuantidade == 0) {
+            pratoExistente.setDisponivel(false);
+        }
 
         return pratoRepository.save(pratoExistente);
     }

@@ -9,7 +9,8 @@ public record PratoResponseDTO(
     Double preco,
     Integer calorias,
     Boolean disponivel,
-    Long categoriaId
+    Long categoriaId,
+    Integer quantidadeEstoque
 ) {
     public PratoResponseDTO(Prato prato) {
         this(
@@ -19,7 +20,8 @@ public record PratoResponseDTO(
             prato.getPreco(),
             prato.getCalorias(),
             prato.getDisponivel(),
-            prato.getCategoriaId()
+            prato.getCategoriaId(),
+            prato.getQuantidadeEstoque()
         );
     }
 }
