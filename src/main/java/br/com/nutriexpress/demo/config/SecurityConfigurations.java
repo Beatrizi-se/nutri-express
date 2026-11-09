@@ -33,8 +33,8 @@ public class SecurityConfigurations {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(req -> {
                     // Rotas publicas de autenticacao
-                    req.requestMatchers(HttpMethod.POST, "/auth/login").permitAll();
-                    req.requestMatchers(HttpMethod.POST, "/auth/registrar").permitAll();
+                    req.requestMatchers(HttpMethod.POST, "/auth/login", "/api/v1/auth/login").permitAll();
+                    req.requestMatchers(HttpMethod.POST, "/auth/registrar", "/api/v1/auth/registrar").permitAll();
 
                     // Documentacao Swagger OpenAPI
                     req.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
@@ -43,13 +43,19 @@ public class SecurityConfigurations {
                     req.requestMatchers("/h2-console/**").permitAll();
 
                     // Leitura do cardapio e categorias publica
-                    req.requestMatchers(HttpMethod.GET, "/categorias/**", "/pratos/**").permitAll();
+                    req.requestMatchers(HttpMethod.GET, "/categorias/**", "/api/v1/categorias/**").permitAll();
+                    req.requestMatchers(HttpMethod.GET, "/pratos/**", "/api/v1/pratos/**").permitAll();
 
                     // Modificacoes no cardapio apenas para ADMIN
-                    req.requestMatchers(HttpMethod.POST, "/categorias/**", "/pratos/**").hasRole("ADMIN");
-                    req.requestMatchers(HttpMethod.PUT, "/categorias/**", "/pratos/**").hasRole("ADMIN");
-                    req.requestMatchers(HttpMethod.PATCH, "/categorias/**", "/pratos/**").hasRole("ADMIN");
-                    req.requestMatchers(HttpMethod.DELETE, "/categorias/**", "/pratos/**").hasRole("ADMIN");
+                    req.requestMatchers(HttpMethod.POST, "/categorias/**", "/api/v1/categorias/**").hasRole("ADMIN");
+                    req.requestMatchers(HttpMethod.PUT, "/categorias/**", "/api/v1/categorias/**").hasRole("ADMIN");
+                    req.requestMatchers(HttpMethod.PATCH, "/categorias/**", "/api/v1/categorias/**").hasRole("ADMIN");
+                    req.requestMatchers(HttpMethod.DELETE, "/categorias/**", "/api/v1/categorias/**").hasRole("ADMIN");
+
+                    req.requestMatchers(HttpMethod.POST, "/pratos/**", "/api/v1/pratos/**").hasRole("ADMIN");
+                    req.requestMatchers(HttpMethod.PUT, "/pratos/**", "/api/v1/pratos/**").hasRole("ADMIN");
+                    req.requestMatchers(HttpMethod.PATCH, "/pratos/**", "/api/v1/pratos/**").hasRole("ADMIN");
+                    req.requestMatchers(HttpMethod.DELETE, "/pratos/**", "/api/v1/pratos/**").hasRole("ADMIN");
 
                     // Demais rotas exigem autenticacao
                     req.anyRequest().authenticated();

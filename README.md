@@ -247,7 +247,10 @@ Para executar os testes automatizados:
 
 > No Windows, utilize `.\mvnw.cmd test`.
 
-O projeto conta com testes unitários para as principais camadas de serviço, utilizando JUnit 5 e Mockito para simulação de dependências.
+O projeto conta com uma pirâmide de testes consistente:
+- **Testes unitários dos Services:** utilizando JUnit 5 e Mockito para validação isolada de regras de negócio, cálculos, integridade de estoque e soft delete.
+- **Testes de integração dos Controllers:** utilizando `MockMvc` e `@WebMvcTest` para validação de endpoints HTTP, serialização JSON, códigos de status (200, 201, 204, 400, 404) e Bean Validation.
+- **Testes de autenticação e segurança:** validação de criação, assinatura e expiração de tokens JWT.
 
 ---
 
@@ -274,7 +277,7 @@ A documentação é gerada automaticamente pelo SpringDoc OpenAPI e permite visu
 | Etapa 5 | Pedidos | ✅ Concluída |
 | Etapa 6 | Estoque e transações | ✅ Concluída |
 | Etapa 7 | Autenticação e usuários | ✅ Concluída (Spring Security + JWT) |
-| Etapa 8 | Testes e documentação | 🔄 Parcial |
+| Etapa 8 | Testes e documentação | ✅ Concluída (Unitários + Integração MockMvc) |
 
 ---
 
