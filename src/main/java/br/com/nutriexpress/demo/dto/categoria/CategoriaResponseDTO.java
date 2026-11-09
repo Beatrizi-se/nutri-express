@@ -8,7 +8,9 @@ public record CategoriaResponseDTO(
     String descricao
 ) {
     public CategoriaResponseDTO(Categoria categoria) {
-        this(categoria.getId(), categoria.getNome(), categoria.getDescricao());
+        this(categoria.getId(),
+        categoria.getNome(),
+        categoria.getDescricao());
     }
 }
 
