@@ -189,3 +189,82 @@ Veja os exemplos reais do `ClienteRepository`:
 - `findByAtivoTrue()` -> Gera: `SELECT * FROM cliente WHERE ativo = true`
 - `findByNomeContainingIgnoreCase(String nome)` -> Gera: `SELECT * FROM cliente WHERE UPPER(nome) LIKE UPPER('%nome%')`
 - `existsByCpfAndIdNot(String cpf, Long id)` -> Gera: `SELECT COUNT(*) > 0 FROM cliente WHERE cpf = ? AND id <> ?` (perfeito para validar duplicidade na atualização sem acusar o próprio registro!)
+
+---
+
+## 7. Relacionamentos Hibernate JPA no Mundo Real
+
+Mapear tabelas relacionais em classes orientadas a objetos é uma das tarefas mais críticas em aplicações corporativas. No Nutri Express, aplicamos os seguintes conceitos fundamentais da JPA/Hibernate:
+
+### A. Cardinalidades: `@ManyToOne` e `@OneToMany`
+- Em um banco de dados relacional, **a chave estrangeira (FK) reside obrigatoriamente na tabela do lado "MUITOS"**.
+- Exemplo no Nutri Express: Vários pratos pertencem a uma única categoria (`Prato` = lado N, `Categoria` = lado 1). Portanto, a coluna `categoria_id` fica fisicamente na tabela `prato`.
+
+### B. Lado Proprietário (*Owning Side*) vs. Lado Inverso (*Inverse Side*)
+- **Lado Proprietário:** É a entidade que gerencia a chave estrangeira física e possui a anotação `@JoinColumn`. É ela que dita os comandos `INSERT` e `UPDATE` no banco:
+  - `Prato` é o lado proprietário de `Prato ↔ Categoria`.
+  - `Pedido` é o lado proprietário de `Pedido ↔ Cliente`.
+  - `ItemPedido` é o lado proprietário de `ItemPedido ↔ Prato`.
+- **Lado Inverso:** É a entidade que apenas "espelha" ou lê a relação através do atributo `mappedBy`. Ela **não** emite alterações de chave estrangeira no banco de dados.
+
+### C. O Papel Vital do `mappedBy`
+Sem o `mappedBy`, o Hibernate assume que as anotações nos dois lados são independentes e cria silenciosamente uma **terceira tabela de junção** desnecessária!
+```java
+// Na entidade Categoria (Lado Inverso):
+@OneToMany(mappedBy = "categoria") // "categoria" e o nome do ATRIBUTO Java na classe Prato
+private List<Prato> pratos = new ArrayList<>();
+```
+
+### D. Por que `FetchType.LAZY` deve ser o Padrão Absoluto?
+- **`FetchType.EAGER` (Antipattern em Produção):** Força o Hibernate a buscar todas as entidades filhas ou pais imediatamente. Ao listar 50 pratos, o sistema faria joins massivos ou 50 consultas extras de categoria (o terrível problema de **N+1 queries**).
+- **`FetchType.LAZY` (Boa Prática):** O Hibernate carrega a associação sob demanda gerando um *proxy* transparente (via ByteBuddy).
+- **Vantagem com DTOs:** Ao chamar `prato.getCategoria().getId()`, o Hibernate 6/7 **não emite consulta SQL extra**. Como a coluna `categoria_id` já veio na consulta original de `prato`, o identificador é lido diretamente do proxy sem custo!
+
+### E. Sincronização Defensiva em Memória
+O Hibernate só sincroniza o banco no momento do *flush/commit*. Se o seu código executar regras de negócio em memória ou testes unitários rápidos sem banco, o Java não atualizará a coleção do outro lado sozinho.
+Por isso, criamos métodos atômicos de amarração (`trocarCategoria()`, `adicionarPedido()`) e protegemos as coleções com `Collections.unmodifiableList(...)`, impedindo que alterações diretas quebrem o encapsulamento do domínio.
+
+---
+
+## 8. Síntese dos Princípios Universais de Engenharia Backend
+
+Estes 7 princípios foram a bússola arquitetural do Nutri Express e constituem a base para você projetar e defender qualquer sistema backend em produção (seja em Java, TypeScript/Node.js, Go, Python ou C#):
+
+### 1. O Princípio da Invariância Temporal (Snapshot Histórico vs. Entidade Viva)
+- **A regra de ouro:** Entidades representam o **presente mutável**; transações representam o **passado inviolável**.
+- **O erro clássico:** Confiar que o relacionamento de banco (`@ManyToOne`) substitui o histórico da compra. Se o restaurante alterar o preço do prato ou o cliente mudar de endereço, o histórico fiscal e os relatórios financeiros anteriores seriam recalculados indevidamente.
+- **A solução universal:** Coexistência entre a chave estrangeira (para análise relacional e navegação) e colunas de snapshot imutáveis (`pratoNome`, `precoUnitario`, `subtotal`, `clienteNome`, `enderecoEntrega`).
+
+### 2. Modelagem Intencional vs. Simetria Cega
+- **A regra de ouro:** Relacionamentos devem atender às perguntas reais do negócio, e não a um desejo estético de preencher os dois lados.
+- **Aplicação:** `ItemPedido → Prato` é estritamente unidirecional. A entidade `Prato` não precisa ter uma coleção com centenas de milhares de itens vendidos carregada na memória toda vez que você consulta o cardápio.
+
+### 3. Composição vs. Agregação no Ciclo de Vida (A Regra das Cascatas)
+- **A regra de ouro:** Só use `CascadeType.ALL` e `orphanRemoval = true` quando a entidade filha for uma parte inseparável da entidade pai.
+- **Aplicação:**
+  - `Pedido → ItemPedido` é uma **Composição**: o item não faz sentido existir sem o pedido.
+  - `Prato`, `Cliente` e `Categoria` são raízes de agregado independentes (**Agregações**): nunca use cascata de deleção nelas. Deixe o banco de dados rejeitar exclusões indevidas via chave estrangeira física (`DataIntegrityViolationException`).
+
+### 4. DTOs como Barreira de Isolamento e Segurança
+- **A regra de ouro:** Nunca exponha o modelo de persistência diretamente na borda HTTP da aplicação.
+- **Benefícios universais:**
+  - **Segurança:** Evita ataques de *over-posting* (onde o usuário envia atributos protegidos como `role` ou `ativo`).
+  - **Estabilidade de Contrato:** Você pode renomear tabelas e colunas no banco sem quebrar os aplicativos front-end e mobile que consomem a API.
+  - **Performance:** Evita vazamento de memória e recursão infinita na serialização JSON.
+
+### 5. Atomicidade Transacional e Consistência de Recursos (`@Transactional`)
+- **A regra de ouro:** Se uma operação altera o estado de múltiplos recursos de negócio, ela deve ser uma operação atômica (tudo acontece ou nada acontece).
+- **Aplicação:** Se o pedido contém 3 itens e o terceiro não possui estoque, os dois primeiros sofrem *rollback* imediato. No cancelamento, a devolução das quantidades ao estoque é parte indispensável da máquina de estados.
+
+### 6. Defesa em Profundidade e Validação Fail-Fast
+- **A regra de ouro:** Intercepte dados inválidos o mais cedo possível, na borda externa, mas garanta que o núcleo de domínio seja inviolável por construção.
+- **Os 3 níveis de defesa do Nutri Express:**
+  1. *Borda HTTP:* Jakarta Bean Validation nos DTOs (`@NotBlank`, `@Positive`, `@Email`).
+  2. *Domínio:* Construtores com validações estritas que rejeitam nulos, zeros e negativos sem fallbacks mágicos silenciosos.
+  3. *Banco de Dados:* Constraints relacionais físicas (`NOT NULL`, `UNIQUE`, `FOREIGN KEY`).
+
+### 7. A Pirâmide de Testes como Especificação Executável
+- **A regra de ouro:** Uma suíte de testes madura equilibra velocidade e profundidade.
+  - **Testes Unitários Rápidos (Mockito):** Testam a lógica de negócio, invariantes e snapshots em milissegundos.
+  - **Testes de Integração de Controller (MockMvc):** Garantem códigos de status HTTP, serialização JSON e filtros de exceção.
+  - **Testes de Banco Real (H2 / SpringBootTest):** Provam que as regras físicas do banco (como integridade referencial de Foreign Keys) realmente barram operações inválidas.
