@@ -29,6 +29,7 @@ O projeto resolve o fluxo operacional completo de um restaurante saudável:
 3. **Pedidos com Snapshot de Preço:** Na criação do item do pedido, o preço unitário do prato é congelado, impedindo que alterações futuras no cardápio alterem retroativamente o histórico de vendas.
 4. **Controle Atômico de Estoque:** Operações de pedido utilizam `@Transactional`. Se um item não tiver saldo suficiente, a transação sofre *rollback* automático. No cancelamento do pedido, o estoque é estornado.
 5. **Segurança Stateless com JWT:** Senhas criptografadas com hash **BCrypt**, tokens assinados via **HMAC-256** e controle de permissões por papéis (`ROLE_ADMIN` e `ROLE_CLIENTE`).
+6. **Relacionamentos Formais JPA e Integridade Referencial:** Associações mapeadas com `FetchType.LAZY` (`Prato ↔ Categoria`, `Pedido ↔ Cliente`, `ItemPedido → Prato`), métodos de sincronização defensivos, encapsulamento de coleções imutáveis e proteção física por chave estrangeira contra exclusão de registros históricos.
 
 ---
 
@@ -187,18 +188,26 @@ Preencha os campos exatamente assim:
 
 ## 🧪 Pirâmide de Testes Automatizados
 
-O Nutri Express possui **70 testes automatizados**, cobrindo 100% dos fluxos de negócio e da camada HTTP com **zero falhas**:
+A suíte automatizada do Nutri Express registra **81 testes aprovados** (execução comprovada no Maven com **zero falhas**):
 
 ```
-               ▲
-              / \
-             /   \     33 Testes de Integração de Controllers
-            / MVC \    (@WebMvcTest + MockMvc: rotas, códigos de status,
-           /───────\   Bean Validation, serialização JSON e filtros de erro)
-          /         \
-         /  SERVICES \  37 Testes Unitários de Regras de Negócio
-        /─────────────\ (JUnit 5 + Mockito: cálculos, estoque, soft delete e JWT)
+                  ▲
+                 / \
+                /   \        1 Teste de Banco e Integridade Referencial
+               /     \       (@SpringBootTest + H2: teste físico de Foreign Key)
+              /───────\
+             /         \     33 Testes de Integração de Controllers
+            /Integração \    (@WebMvcTest + MockMvc: rotas, códigos de status,
+           /  (MockMvc)  \   Bean Validation, serialização JSON e filtros de erro)
+          /───────────────\
+         /     Testes      \  47 Testes Unitários de Regras de Negócio e Domínio
+        /    Unitários      \ (JUnit 5 + Mockito: cálculos, estoque, invariantes,
+       /    dos Services     \ snapshots e sincronização de relacionamentos)
+      └───────────────────────┘
 ```
+
+> [!NOTE]
+> A contagem de 81 testes reflete o resultado da execução registrada na suíte atual. A validação de integridade referencial foi comprovada no banco de dados H2; a execução em banco de dados de produção (PostgreSQL) permanece como etapa de homologação de ambiente.
 
 Para executar toda a suíte de testes:
 ```powershell
@@ -223,7 +232,8 @@ Para executar apenas os testes de integração dos Controllers:
 | **Etapa 5** | Pedidos | ✅ Concluída | Snapshot de preço em `ItemPedido`, cálculo de totais e 8 testes unitários |
 | **Etapa 6** | Estoque e transações | ✅ Concluída | Baixa no checkout, bloqueio por saldo e estorno no cancelamento via `@Transactional` |
 | **Etapa 7** | Autenticação e usuários | ✅ Concluída | Spring Security Stateless, tokens JWT (HMAC-256) e senhas em BCrypt |
-| **Etapa 8** | Testes e documentação | ✅ Concluída | 70 testes automatizados (Mockito + MockMvc) e documentação Swagger interativa |
+| **Etapa 8** | Testes e documentação | ✅ Concluída | Suíte inicial de testes automatizados e documentação Swagger interativa |
+| **Etapa 9** | Relacionamentos Hibernate JPA (Aula 12) | ✅ Concluída | Associações `Prato ↔ Categoria`, `Pedido ↔ Cliente`, `ItemPedido → Prato`, proteção por FK, snapshots imutáveis e suíte expandida para 81 testes aprovados |
 
 ---
 
