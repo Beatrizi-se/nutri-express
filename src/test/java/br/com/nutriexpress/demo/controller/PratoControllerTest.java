@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import br.com.nutriexpress.demo.dto.prato.PratoRequestDTO;
 import br.com.nutriexpress.demo.exception.ResourceNotFoundException;
+import br.com.nutriexpress.demo.model.Categoria;
 import br.com.nutriexpress.demo.model.Prato;
 import br.com.nutriexpress.demo.repository.UsuarioRepository;
 import br.com.nutriexpress.demo.service.PratoService;
@@ -45,7 +46,8 @@ class PratoControllerTest {
     private UsuarioRepository usuarioRepository;
 
     private Prato criarPratoExemplo() {
-        return new Prato(10L, "Salada Caesar Fit", "Alface, frango e molho leve", 28.50, 220, true, 1L, 15);
+        Categoria categoria = new Categoria(1L, "Saladas", "Pratos leves e saladas");
+        return new Prato(10L, "Salada Caesar Fit", "Alface, frango e molho leve", 28.50, 220, true, categoria, 15);
     }
 
     @Test

@@ -20,7 +20,7 @@ public record PratoResponseDTO(
             prato.getPreco(),
             prato.getCalorias(),
             prato.getDisponivel(),
-            prato.getCategoriaId(),
+            prato.getCategoria() != null ? prato.getCategoria().getId() : null,
             prato.getQuantidadeEstoque()
         );
     }

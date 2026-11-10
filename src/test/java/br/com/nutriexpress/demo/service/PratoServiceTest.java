@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import br.com.nutriexpress.demo.dto.prato.PratoRequestDTO;
 import br.com.nutriexpress.demo.exception.RegraNegocioException;
 import br.com.nutriexpress.demo.exception.ResourceNotFoundException;
+import br.com.nutriexpress.demo.model.Categoria;
 import br.com.nutriexpress.demo.model.Prato;
 import br.com.nutriexpress.demo.repository.CategoriaRepository;
 import br.com.nutriexpress.demo.repository.PratoRepository;
@@ -35,10 +36,12 @@ class PratoServiceTest {
     private PratoService pratoService;
 
     private Prato pratoExemplo;
+    private Categoria categoriaExemplo;
 
     @BeforeEach
     void setUp() {
-        pratoExemplo = new Prato(1L, "Salada Caesar", "Alface, frango e molho especial", 28.50, 350, true, 1L, 15);
+        categoriaExemplo = new Categoria(1L, "Saladas", "Pratos saudáveis");
+        pratoExemplo = new Prato(1L, "Salada Caesar", "Alface, frango e molho especial", 28.50, 350, true, categoriaExemplo, 15);
     }
 
     @Test
@@ -92,7 +95,7 @@ class PratoServiceTest {
     void criarPrato_ComSucesso() {
         PratoRequestDTO request = new PratoRequestDTO("Wrap de Frango", "Wrap integral", 22.0, 310, true, 1L, 20);
 
-        when(categoriaRepository.existsById(1L)).thenReturn(true);
+        when(categoriaRepository.findById(1L)).thenReturn(Optional.of(categoriaExemplo));
         when(pratoRepository.existsByNomeIgnoreCase("Wrap de Frango")).thenReturn(false);
         when(pratoRepository.save(any(Prato.class))).thenAnswer(invocation -> {
             Prato p = invocation.getArgument(0);
@@ -106,7 +109,8 @@ class PratoServiceTest {
         assertEquals(2L, criado.getId());
         assertEquals("Wrap de Frango", criado.getNome());
         assertEquals(20, criado.getQuantidadeEstoque());
-        verify(categoriaRepository, times(1)).existsById(1L);
+        assertEquals(1L, criado.getCategoria().getId());
+        verify(categoriaRepository, times(1)).findById(1L);
         verify(pratoRepository, times(1)).save(any(Prato.class));
     }
 
@@ -115,7 +119,7 @@ class PratoServiceTest {
     void criarPrato_QuandoCategoriaNaoExiste_DeveLancarExcecao() {
         PratoRequestDTO request = new PratoRequestDTO("Wrap de Frango", "Wrap integral", 22.0, 310, true, 999L, 10);
 
-        when(categoriaRepository.existsById(999L)).thenReturn(false);
+        when(categoriaRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> pratoService.criarPrato(request));
         verify(pratoRepository, never()).save(any(Prato.class));
@@ -126,7 +130,7 @@ class PratoServiceTest {
     void criarPrato_QuandoNomeDuplicado_DeveLancarExcecao() {
         PratoRequestDTO request = new PratoRequestDTO("Salada Caesar", "Outra receita", 30.0, 400, true, 1L, 10);
 
-        when(categoriaRepository.existsById(1L)).thenReturn(true);
+        when(categoriaRepository.findById(1L)).thenReturn(Optional.of(categoriaExemplo));
         when(pratoRepository.existsByNomeIgnoreCase("Salada Caesar")).thenReturn(true);
 
         assertThrows(RegraNegocioException.class, () -> pratoService.criarPrato(request));
@@ -165,6 +169,85 @@ class PratoServiceTest {
     void atualizarEstoque_ValorNegativo_DeveLancarExcecao() {
         assertThrows(RegraNegocioException.class, () -> pratoService.atualizarEstoque(1L, -5));
         verify(pratoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve atualizar prato e trocar categoria com sucesso e consistência bidirecional")
+    void atualizarPrato_TrocaCategoria_ComSucesso() {
+        // Categoria inicial A já contendo o prato
+        Categoria categoriaInicial = categoriaExemplo;
+        assertTrue(categoriaInicial.getPratos().contains(pratoExemplo));
+
+        // Categoria nova B
+        Categoria novaCategoria = new Categoria(2L, "Pratos Quentes", "Grelhados e assados");
+        PratoRequestDTO request = new PratoRequestDTO("Salada Caesar Modificada", "Com croutons integrais", 35.0, 380, true, 2L, 25);
+
+        when(pratoRepository.findById(1L)).thenReturn(Optional.of(pratoExemplo));
+        when(categoriaRepository.findById(2L)).thenReturn(Optional.of(novaCategoria));
+        when(pratoRepository.existsByNomeIgnoreCaseAndIdNot("Salada Caesar Modificada", 1L)).thenReturn(false);
+        when(pratoRepository.save(any(Prato.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Prato atualizado = pratoService.atualizarPrato(1L, request);
+
+        assertNotNull(atualizado);
+        assertEquals("Salada Caesar Modificada", atualizado.getNome());
+        assertEquals(2L, atualizado.getCategoria().getId());
+
+        // Comprova a remoção da categoria inicial A e inclusão na nova categoria B
+        assertFalse(categoriaInicial.getPratos().contains(atualizado));
+        assertTrue(novaCategoria.getPratos().contains(atualizado));
+
+        verify(categoriaRepository, times(1)).findById(2L);
+        verify(pratoRepository, times(1)).save(pratoExemplo);
+    }
+
+    @Test
+    @DisplayName("Deve manter a sincronização bidirecional completa, evitar duplicatas e desvincular da anterior")
+    void sincronizacaoBidirecional_DeveGarantirConsistencia() {
+        Categoria catA = new Categoria(10L, "Sobremesas", "Doces fit");
+        Categoria catB = new Categoria(20L, "Lanches", "Lanches saudáveis");
+
+        // 1. Associação inicial através do construtor
+        Prato prato = new Prato(100L, "Mousse Fit", "Cacau 70%", 15.0, 150, true, catA);
+        assertEquals(catA, prato.getCategoria());
+        assertTrue(catA.getPratos().contains(prato));
+        assertEquals(1, catA.getPratos().size());
+
+        // 2. Ausência de duplicatas ao adicionar novamente à mesma categoria
+        catA.adicionarPrato(prato);
+        assertEquals(1, catA.getPratos().size());
+
+        prato.trocarCategoria(catA);
+        assertEquals(1, catA.getPratos().size());
+
+        // 3. Transferência da categoria A para a B
+        prato.trocarCategoria(catB);
+
+        // 4. Remoção do prato da lista de A e inclusão na lista de B
+        assertFalse(catA.getPratos().contains(prato));
+        assertEquals(0, catA.getPratos().size());
+
+        assertTrue(catB.getPratos().contains(prato));
+        assertEquals(1, catB.getPratos().size());
+        assertEquals(catB, prato.getCategoria());
+
+        // 5. Associação via Categoria.adicionarPrato() para um prato que já pertencia a outra categoria
+        catA.adicionarPrato(prato);
+        assertTrue(catA.getPratos().contains(prato));
+        assertEquals(1, catA.getPratos().size());
+        assertFalse(catB.getPratos().contains(prato));
+        assertEquals(0, catB.getPratos().size());
+        assertEquals(catA, prato.getCategoria());
+
+        // 6. Rejeição de categoria nula
+        assertThrows(NullPointerException.class, () -> prato.trocarCategoria(null));
+        assertThrows(NullPointerException.class, () -> prato.setCategoria(null));
+        assertThrows(IllegalArgumentException.class, () -> catA.adicionarPrato(null));
+
+        // 7. Impossibilidade de modificar diretamente a coleção retornada por getPratos()
+        List<Prato> listaPratos = catA.getPratos();
+        assertThrows(UnsupportedOperationException.class, () -> listaPratos.add(new Prato()));
+        assertThrows(UnsupportedOperationException.class, () -> listaPratos.remove(prato));
     }
 
     @Test

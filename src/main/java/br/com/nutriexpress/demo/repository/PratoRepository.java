@@ -10,8 +10,8 @@ public interface PratoRepository extends JpaRepository<Prato, Long> {
     // Listar apenas pratos marcados como disponíveis
     List<Prato> findByDisponivelTrue();
 
-    // Filtrar pratos pertencentes a uma categoria específica
-    List<Prato> findByCategoriaId(Long categoriaId);
+    // Filtrar pratos pertencentes a uma categoria específica navegando pela chave estrangeira
+    List<Prato> findByCategoria_Id(Long categoriaId);
 
     // Buscar pratos pelo nome (busca parcial, ex: "Frango" encontra "Salada com Frango")
     List<Prato> findByNomeContainingIgnoreCase(String nome);

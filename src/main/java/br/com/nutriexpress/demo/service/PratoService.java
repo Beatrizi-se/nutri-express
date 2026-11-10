@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import br.com.nutriexpress.demo.dto.prato.PratoRequestDTO;
 import br.com.nutriexpress.demo.exception.RegraNegocioException;
 import br.com.nutriexpress.demo.exception.ResourceNotFoundException;
+import br.com.nutriexpress.demo.model.Categoria;
 import br.com.nutriexpress.demo.model.Prato;
 import br.com.nutriexpress.demo.repository.CategoriaRepository;
 import br.com.nutriexpress.demo.repository.PratoRepository;
@@ -43,7 +44,7 @@ public class PratoService {
         if (!categoriaRepository.existsById(categoriaId)) {
             throw new ResourceNotFoundException("Categoria não encontrada com o ID: " + categoriaId);
         }
-        return pratoRepository.findByCategoriaId(categoriaId);
+        return pratoRepository.findByCategoria_Id(categoriaId);
     }
 
     public List<Prato> buscarPorNome(String nome) {
@@ -56,9 +57,8 @@ public class PratoService {
 
     @Transactional
     public Prato criarPrato(PratoRequestDTO dto) {
-        if (!categoriaRepository.existsById(dto.categoriaId())) {
-            throw new ResourceNotFoundException("Não é possível cadastrar o prato: Categoria não encontrada com o ID: " + dto.categoriaId());
-        }
+        Categoria categoria = categoriaRepository.findById(dto.categoriaId())
+                .orElseThrow(() -> new ResourceNotFoundException("Não é possível cadastrar o prato: Categoria não encontrada com o ID: " + dto.categoriaId()));
 
         if (pratoRepository.existsByNomeIgnoreCase(dto.nome())) {
             throw new RegraNegocioException("Já existe um prato cadastrado com o nome: " + dto.nome());
@@ -74,7 +74,7 @@ public class PratoService {
         prato.setCalorias(dto.calorias());
         prato.setQuantidadeEstoque(estoque);
         prato.setDisponivel(disponivel);
-        prato.setCategoriaId(dto.categoriaId());
+        prato.setCategoria(categoria);
 
         return pratoRepository.save(prato);
     }
@@ -83,9 +83,8 @@ public class PratoService {
     public Prato atualizarPrato(Long id, PratoRequestDTO dto) {
         Prato pratoExistente = buscarPorId(id);
 
-        if (!categoriaRepository.existsById(dto.categoriaId())) {
-            throw new ResourceNotFoundException("Não é possível atualizar o prato: Categoria não encontrada com o ID: " + dto.categoriaId());
-        }
+        Categoria categoria = categoriaRepository.findById(dto.categoriaId())
+                .orElseThrow(() -> new ResourceNotFoundException("Não é possível atualizar o prato: Categoria não encontrada com o ID: " + dto.categoriaId()));
 
         if (pratoRepository.existsByNomeIgnoreCaseAndIdNot(dto.nome(), id)) {
             throw new RegraNegocioException("Já existe outro prato cadastrado com o nome: " + dto.nome());
@@ -104,7 +103,7 @@ public class PratoService {
         if (dto.disponivel() != null) {
             pratoExistente.setDisponivel(dto.disponivel());
         }
-        pratoExistente.setCategoriaId(dto.categoriaId());
+        pratoExistente.trocarCategoria(categoria);
 
         return pratoRepository.save(pratoExistente);
     }

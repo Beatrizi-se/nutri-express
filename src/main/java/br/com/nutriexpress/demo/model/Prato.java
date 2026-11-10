@@ -1,14 +1,19 @@
 package br.com.nutriexpress.demo.model;
 
+import java.util.Objects;
+
 import br.com.nutriexpress.demo.exception.RegraNegocioException;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 
 @Entity
 public class Prato {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -18,25 +23,31 @@ public class Prato {
     private Double preco;
     private Integer calorias;
     private Boolean disponivel;
-    private Long categoriaId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "categoria_id", nullable = false)
+    private Categoria categoria;
+
     private Integer quantidadeEstoque = 0;
 
     public Prato() {
     }
 
-    public Prato(Long id, String nome, String descricao, Double preco, Integer calorias, Boolean disponivel, Long categoriaId, Integer quantidadeEstoque) {
+    public Prato(Long id, String nome, String descricao, Double preco, Integer calorias, Boolean disponivel, Categoria categoria, Integer quantidadeEstoque) {
         this.id = id;
         this.nome = nome;
         this.descricao = descricao;
         this.preco = preco;
         this.calorias = calorias;
         this.disponivel = disponivel;
-        this.categoriaId = categoriaId;
         this.quantidadeEstoque = quantidadeEstoque != null ? quantidadeEstoque : 0;
+        if (categoria != null) {
+            this.trocarCategoria(categoria);
+        }
     }
 
-    public Prato(Long id, String nome, String descricao, Double preco, Integer calorias, Boolean disponivel, Long categoriaId) {
-        this(id, nome, descricao, preco, calorias, disponivel, categoriaId, 0);
+    public Prato(Long id, String nome, String descricao, Double preco, Integer calorias, Boolean disponivel, Categoria categoria) {
+        this(id, nome, descricao, preco, calorias, disponivel, categoria, 0);
     }
 
     public Prato(String nome, String descricao, Double preco) {
@@ -44,6 +55,27 @@ public class Prato {
         this.descricao = descricao;
         this.preco = preco;
         this.quantidadeEstoque = 0;
+    }
+
+    /**
+     * Centraliza a sincronizacao bidirecional entre Prato e Categoria.
+     * 1. Rejeita categoria nula.
+     * 2. Se ja estiver associado a mesma categoria, garante que esteja na lista interna e retorna sem duplicar.
+     * 3. Remove o prato da lista interna da categoria anterior (se houver).
+     * 4. Atualiza a referencia 'this.categoria'.
+     * 5. Inclui o prato na lista interna da nova categoria.
+     */
+    public void trocarCategoria(Categoria novaCategoria) {
+        Objects.requireNonNull(novaCategoria, "A categoria de um prato não pode ser nula.");
+        if (this.categoria == novaCategoria) {
+            novaCategoria.incluirPratoInterno(this);
+            return;
+        }
+        if (this.categoria != null) {
+            this.categoria.desvincularPratoInterno(this);
+        }
+        this.categoria = novaCategoria;
+        novaCategoria.incluirPratoInterno(this);
     }
 
     public void decrementarEstoque(int qtd) {
@@ -114,12 +146,16 @@ public class Prato {
         this.disponivel = disponivel;
     }
 
-    public Long getCategoriaId() {
-        return categoriaId;
+    public Categoria getCategoria() {
+        return categoria;
     }
 
-    public void setCategoriaId(Long categoriaId) {
-        this.categoriaId = categoriaId;
+    /**
+     * Define ou altera a categoria do prato garantindo a sincronizacao bidirecional.
+     * Delega integralmente a regra para trocarCategoria().
+     */
+    public void setCategoria(Categoria categoria) {
+        this.trocarCategoria(categoria);
     }
 
     public Integer getQuantidadeEstoque() {
