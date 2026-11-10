@@ -1,6 +1,9 @@
 package br.com.nutriexpress.demo.model;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
@@ -8,6 +11,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 
 @Entity
 public class Cliente {
@@ -35,6 +39,9 @@ public class Cliente {
     @Embedded
     private Endereco endereco;
 
+    @OneToMany(mappedBy = "cliente")
+    private List<Pedido> pedidos = new ArrayList<>();
+
     public Cliente() {
     }
 
@@ -47,6 +54,30 @@ public class Cliente {
         this.dataNascimento = dataNascimento;
         this.ativo = ativo != null ? ativo : true;
         this.endereco = endereco;
+    }
+
+    /**
+     * Adiciona um pedido a este cliente delegando o vinculo ao pedido.
+     */
+    public void adicionarPedido(Pedido pedido) {
+        if (pedido == null) {
+            throw new IllegalArgumentException("O pedido a ser adicionado não pode ser nulo.");
+        }
+        pedido.setCliente(this);
+    }
+
+    /**
+     * Metodo interno package-private para inclusao direta na colecao privada.
+     * Invocado exclusivamente pelo fluxo de Pedido.setCliente().
+     */
+    void incluirPedidoInterno(Pedido pedido) {
+        if (pedido != null && !this.pedidos.contains(pedido)) {
+            this.pedidos.add(pedido);
+        }
+    }
+
+    public List<Pedido> getPedidos() {
+        return Collections.unmodifiableList(pedidos);
     }
 
     public Long getId() {

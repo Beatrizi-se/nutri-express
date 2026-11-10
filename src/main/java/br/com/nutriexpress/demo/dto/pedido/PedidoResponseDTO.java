@@ -20,7 +20,7 @@ public record PedidoResponseDTO(
     public PedidoResponseDTO(Pedido pedido) {
         this(
             pedido.getId(),
-            pedido.getClienteId(),
+            pedido.getCliente() != null ? pedido.getCliente().getId() : null,
             pedido.getClienteNome(),
             pedido.getDataHora(),
             pedido.getStatus(),

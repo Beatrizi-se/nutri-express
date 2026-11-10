@@ -14,8 +14,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import br.com.nutriexpress.demo.dto.pedido.PedidoRequestDTO;
 import br.com.nutriexpress.demo.exception.ResourceNotFoundException;
+import br.com.nutriexpress.demo.model.Categoria;
+import br.com.nutriexpress.demo.model.Cliente;
 import br.com.nutriexpress.demo.model.ItemPedido;
 import br.com.nutriexpress.demo.model.Pedido;
+import br.com.nutriexpress.demo.model.Prato;
 import br.com.nutriexpress.demo.model.StatusPedido;
 import br.com.nutriexpress.demo.repository.UsuarioRepository;
 import br.com.nutriexpress.demo.service.PedidoService;
@@ -47,14 +50,18 @@ class PedidoControllerTest {
     private UsuarioRepository usuarioRepository;
 
     private Pedido criarPedidoExemplo() {
+        Cliente cliente = new Cliente(1L, "Maria Silva", "maria@email.com", "12345678901", "11999999999", null, true, null);
+        Categoria categoria = new Categoria(1L, "Saladas", "Saladas");
+        Prato prato = new Prato(10L, "Salada Caesar", "Salada leve", 25.0, 200, true, categoria, 10);
+
         Pedido pedido = new Pedido();
         pedido.setId(100L);
-        pedido.setClienteId(1L);
+        pedido.setCliente(cliente);
         pedido.setClienteNome("Maria Silva");
         pedido.setDataHora(LocalDateTime.now());
         pedido.setStatus(StatusPedido.PENDENTE);
 
-        ItemPedido item = new ItemPedido(10L, "Salada Caesar", 2, 25.0);
+        ItemPedido item = new ItemPedido(prato, 2, 25.0);
         pedido.adicionarItem(item);
 
         return pedido;
@@ -168,5 +175,64 @@ class PedidoControllerTest {
         mockMvc.perform(patch("/api/v1/pedidos/100/cancelar"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELADO"));
+    }
+
+    @Test
+    @DisplayName("POST e GET /api/v1/pedidos - Ciclo dinâmico com inativação de cliente e preservação do histórico")
+    void cicloPedido_ClienteInativado_DeveBloquearNovosEPreservarHistorico() throws Exception {
+        Long clienteId = 1L;
+
+        // 1. Simula checkout bem-sucedido com cliente ativo
+        Pedido pedidoAtivo = criarPedidoExemplo();
+        when(pedidoService.criarPedido(any(PedidoRequestDTO.class))).thenReturn(pedidoAtivo);
+
+        String jsonNovoPedido = String.format("""
+            {
+                "clienteId": %d,
+                "itens": [
+                    { "pratoId": 10, "quantidade": 2 }
+                ]
+            }
+        """, clienteId);
+
+        String responseCriacao = mockMvc.perform(post("/api/v1/pedidos")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonNovoPedido))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.clienteId").value(clienteId))
+                .andExpect(jsonPath("$.clienteNome").value("Maria Silva"))
+                .andReturn().getResponse().getContentAsString();
+
+        // Extrai o ID dinâmico retornado na resposta
+        Number idDinamico = com.jayway.jsonpath.JsonPath.read(responseCriacao, "$.id");
+        Long pedidoIdCriado = idDinamico.longValue();
+
+        // 2. Simula inativação do cliente: tentativa de novo pedido deve retornar 409 Conflict
+        when(pedidoService.criarPedido(any(PedidoRequestDTO.class)))
+                .thenThrow(new br.com.nutriexpress.demo.exception.RegraNegocioException("Não é possível realizar o pedido: o cliente está inativo no sistema."));
+
+        mockMvc.perform(post("/api/v1/pedidos")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonNovoPedido))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Não é possível realizar o pedido: o cliente está inativo no sistema."));
+
+        // 3. Simula consulta histórica do pedido anterior pelo ID capturado dinamicamente
+        when(pedidoService.buscarPorId(pedidoIdCriado)).thenReturn(pedidoAtivo);
+
+        mockMvc.perform(get("/api/v1/pedidos/" + pedidoIdCriado))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(pedidoIdCriado))
+                .andExpect(jsonPath("$.clienteId").value(clienteId))
+                .andExpect(jsonPath("$.clienteNome").value("Maria Silva"));
+
+        // 4. Simula listagem histórica por cliente filtrado usando o clienteId dinâmico
+        when(pedidoService.listarPorCliente(clienteId)).thenReturn(List.of(pedidoAtivo));
+
+        mockMvc.perform(get("/api/v1/pedidos").param("clienteId", clienteId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(pedidoIdCriado))
+                .andExpect(jsonPath("$[0].clienteId").value(clienteId))
+                .andExpect(jsonPath("$[0].clienteNome").value("Maria Silva"));
     }
 }

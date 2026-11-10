@@ -4,14 +4,19 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import br.com.nutriexpress.demo.exception.RegraNegocioException;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 
 @Entity
@@ -21,7 +26,14 @@ public class Pedido {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long clienteId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+        name = "cliente_id",
+        nullable = false,
+        foreignKey = @ForeignKey(name = "fk_pedido_cliente")
+    )
+    private Cliente cliente;
+
     private String clienteNome;
     private LocalDateTime dataHora;
 
@@ -61,12 +73,39 @@ public class Pedido {
         this.id = id;
     }
 
-    public Long getClienteId() {
-        return clienteId;
+    public Cliente getCliente() {
+        return cliente;
     }
 
-    public void setClienteId(Long clienteId) {
-        this.clienteId = clienteId;
+    /**
+     * Define ou vincula o cliente ao pedido de forma estavel e imutavel.
+     * 1. Rejeita cliente nulo.
+     * 2. Primeira associacao: vincula this.cliente e inclui na colecao do cliente.
+     * 3. Mesma referencia: operacao idempotente.
+     * 4. Instancia diferente com o mesmo ID: preserva a referencia original intacta e nao polui a colecao da segunda instancia.
+     * 5. Clientes com IDs diferentes ou incompativeis: lanca RegraNegocioException bloqueando transferencia.
+     */
+    public void setCliente(Cliente novoCliente) {
+        if (novoCliente == null) {
+            throw new IllegalArgumentException("O cliente do pedido é obrigatório e não pode ser nulo.");
+        }
+
+        if (this.cliente == null) {
+            this.cliente = novoCliente;
+            novoCliente.incluirPedidoInterno(this);
+            return;
+        }
+
+        if (this.cliente == novoCliente) {
+            return;
+        }
+
+        if (this.cliente.getId() != null && novoCliente.getId() != null
+                && this.cliente.getId().equals(novoCliente.getId())) {
+            return;
+        }
+
+        throw new RegraNegocioException("Não é permitido transferir a titularidade de um pedido existente.");
     }
 
     public String getClienteNome() {
