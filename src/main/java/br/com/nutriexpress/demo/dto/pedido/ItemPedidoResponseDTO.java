@@ -13,7 +13,7 @@ public record ItemPedidoResponseDTO(
     public ItemPedidoResponseDTO(ItemPedido item) {
         this(
             item.getId(),
-            item.getPratoId(),
+            item.getPrato() != null ? item.getPrato().getId() : null,
             item.getPratoNome(),
             item.getQuantidade(),
             item.getPrecoUnitario(),

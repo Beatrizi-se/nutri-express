@@ -1,8 +1,10 @@
 package br.com.nutriexpress.demo.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import br.com.nutriexpress.demo.exception.RegraNegocioException;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -16,7 +18,14 @@ public class ItemPedido {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long pratoId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+        name = "prato_id",
+        nullable = false,
+        foreignKey = @ForeignKey(name = "fk_item_pedido_prato")
+    )
+    private Prato prato;
+
     private String pratoNome;
     private Integer quantidade;
     private Double precoUnitario;
@@ -30,12 +39,22 @@ public class ItemPedido {
     public ItemPedido() {
     }
 
-    public ItemPedido(Long pratoId, String pratoNome, Integer quantidade, Double precoUnitario) {
-        this.pratoId = pratoId;
-        this.pratoNome = pratoNome;
+    public ItemPedido(Prato prato, Integer quantidade, Double precoUnitario) {
+        if (prato == null) {
+            throw new IllegalArgumentException("O prato associado ao item é obrigatório e não pode ser nulo.");
+        }
+        if (quantidade == null || quantidade <= 0) {
+            throw new IllegalArgumentException("A quantidade do item deve ser obrigatória e maior que zero.");
+        }
+        if (precoUnitario == null || precoUnitario <= 0) {
+            throw new IllegalArgumentException("O preço unitário histórico é obrigatório e deve ser maior que zero.");
+        }
+
+        this.prato = prato;
+        this.pratoNome = prato.getNome();
         this.quantidade = quantidade;
         this.precoUnitario = precoUnitario;
-        this.subtotal = precoUnitario != null && quantidade != null ? precoUnitario * quantidade : 0.0;
+        this.subtotal = precoUnitario * quantidade;
     }
 
     public Long getId() {
@@ -46,12 +65,28 @@ public class ItemPedido {
         this.id = id;
     }
 
-    public Long getPratoId() {
-        return pratoId;
+    public Prato getPrato() {
+        return prato;
     }
 
-    public void setPratoId(Long pratoId) {
-        this.pratoId = pratoId;
+    /**
+     * Define ou vincula o prato ao item.
+     * Permite a primeira atribuição (inclusive pelo Hibernate na hidratação),
+     * mas bloqueia categoricamente a troca de prato de um item já criado.
+     */
+    public void setPrato(Prato novoPrato) {
+        if (novoPrato == null) {
+            throw new IllegalArgumentException("O prato do item não pode ser nulo.");
+        }
+        if (this.prato == null) {
+            this.prato = novoPrato;
+            return;
+        }
+        if (this.prato == novoPrato ||
+            (this.prato.getId() != null && novoPrato.getId() != null && this.prato.getId().equals(novoPrato.getId()))) {
+            return;
+        }
+        throw new RegraNegocioException("Não é permitido alterar o prato de um item de pedido já criado.");
     }
 
     public String getPratoNome() {
@@ -67,8 +102,11 @@ public class ItemPedido {
     }
 
     public void setQuantidade(Integer quantidade) {
+        if (quantidade == null || quantidade <= 0) {
+            throw new IllegalArgumentException("A quantidade do item deve ser obrigatória e maior que zero.");
+        }
         this.quantidade = quantidade;
-        if (this.precoUnitario != null && quantidade != null) {
+        if (this.precoUnitario != null) {
             this.subtotal = this.precoUnitario * quantidade;
         }
     }
@@ -78,8 +116,11 @@ public class ItemPedido {
     }
 
     public void setPrecoUnitario(Double precoUnitario) {
+        if (precoUnitario == null || precoUnitario <= 0) {
+            throw new IllegalArgumentException("O preço unitário histórico é obrigatório e deve ser maior que zero.");
+        }
         this.precoUnitario = precoUnitario;
-        if (precoUnitario != null && this.quantidade != null) {
+        if (this.quantidade != null) {
             this.subtotal = precoUnitario * this.quantidade;
         }
     }

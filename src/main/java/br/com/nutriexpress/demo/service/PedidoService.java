@@ -49,7 +49,7 @@ public class PedidoService {
         if (!clienteRepository.existsById(clienteId)) {
             throw new ResourceNotFoundException("Cliente não encontrado com o ID: " + clienteId);
         }
-        return pedidoRepository.findByClienteId(clienteId);
+        return pedidoRepository.findByCliente_Id(clienteId);
     }
 
     public List<Pedido> listarPorStatus(StatusPedido status) {
@@ -75,7 +75,7 @@ public class PedidoService {
         }
 
         Pedido pedido = new Pedido();
-        pedido.setClienteId(cliente.getId());
+        pedido.setCliente(cliente);
         pedido.setClienteNome(cliente.getNome());
         pedido.setEnderecoEntrega(cliente.getEndereco());
 
@@ -92,8 +92,7 @@ public class PedidoService {
             pratoRepository.save(prato);
 
             ItemPedido item = new ItemPedido(
-                    prato.getId(),
-                    prato.getNome(),
+                    prato,
                     itemDto.quantidade(),
                     prato.getPreco()
             );
@@ -132,10 +131,11 @@ public class PedidoService {
 
         // Estorno automático dos itens para o estoque
         for (ItemPedido item : pedido.getItens()) {
-            pratoRepository.findById(item.getPratoId()).ifPresent(prato -> {
+            Prato prato = item.getPrato();
+            if (prato != null) {
                 prato.incrementarEstoque(item.getQuantidade());
                 pratoRepository.save(prato);
-            });
+            }
         }
 
         pedido.setStatus(StatusPedido.CANCELADO);

@@ -16,6 +16,7 @@ import br.com.nutriexpress.demo.dto.pedido.ItemPedidoRequestDTO;
 import br.com.nutriexpress.demo.dto.pedido.PedidoRequestDTO;
 import br.com.nutriexpress.demo.exception.RegraNegocioException;
 import br.com.nutriexpress.demo.exception.ResourceNotFoundException;
+import br.com.nutriexpress.demo.model.Categoria;
 import br.com.nutriexpress.demo.model.Cliente;
 import br.com.nutriexpress.demo.model.Endereco;
 import br.com.nutriexpress.demo.model.ItemPedido;
@@ -56,8 +57,10 @@ class PedidoServiceTest {
         clienteAtivo = new Cliente(1L, "Carlos Lima", "carlos@email.com", "11122233344", "11987654321", LocalDate.of(1990, 1, 1), true, endereco);
         clienteInativo = new Cliente(2L, "Ana Inativa", "ana@email.com", "55566677788", "11912345678", LocalDate.of(1992, 2, 2), false, endereco);
 
-        pratoDisponivel = new Prato(10L, "Salada Fit", "Salada completa", 25.0, 200, true, 1L, 10);
-        pratoIndisponivel = new Prato(20L, "Suco Esgotado", "Indisponível hoje", 12.0, 100, false, 2L, 0);
+        Categoria cat1 = new Categoria(1L, "Saladas", "Saladas");
+        Categoria cat2 = new Categoria(2L, "Bebidas", "Sucos");
+        pratoDisponivel = new Prato(10L, "Salada Fit", "Salada completa", 25.0, 200, true, cat1, 10);
+        pratoIndisponivel = new Prato(20L, "Suco Esgotado", "Indisponível hoje", 12.0, 100, false, cat2, 0);
     }
 
     @Test
@@ -164,11 +167,10 @@ class PedidoServiceTest {
         Pedido pedido = new Pedido();
         pedido.setId(100L);
         pedido.setStatus(StatusPedido.PENDENTE);
-        ItemPedido item = new ItemPedido(10L, "Salada Fit", 3, 25.0);
+        ItemPedido item = new ItemPedido(pratoDisponivel, 3, 25.0);
         pedido.adicionarItem(item);
 
         when(pedidoRepository.findById(100L)).thenReturn(Optional.of(pedido));
-        when(pratoRepository.findById(10L)).thenReturn(Optional.of(pratoDisponivel)); // estoque inicial 10
         when(pedidoRepository.save(any(Pedido.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Pedido cancelado = pedidoService.cancelarPedido(100L);
@@ -194,5 +196,108 @@ class PedidoServiceTest {
         );
 
         verify(pedidoRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Deve vincular cliente na criação do pedido e manter integridade bidirecional")
+    void criarPedido_DeveVincularClienteEColecaoBidirecional() {
+        PedidoRequestDTO request = new PedidoRequestDTO(
+                1L,
+                List.of(new ItemPedidoRequestDTO(10L, 1))
+        );
+
+        when(clienteRepository.findById(1L)).thenReturn(Optional.of(clienteAtivo));
+        when(pratoRepository.findById(10L)).thenReturn(Optional.of(pratoDisponivel));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Pedido criado = pedidoService.criarPedido(request);
+
+        assertNotNull(criado);
+        assertEquals(clienteAtivo, criado.getCliente());
+        assertEquals("Carlos Lima", criado.getClienteNome());
+        assertTrue(clienteAtivo.getPedidos().contains(criado));
+    }
+
+    @Test
+    @DisplayName("Deve manter referência original estável e não poluir coleção de clone com mesmo ID")
+    void setCliente_ComMesmoIdEmInstanciasDiferentes_DeveManterReferenciaOriginalEIsolarColecoes() {
+        Cliente clienteOriginal = new Cliente(1L, "Carlos", "carlos@email.com", "111", "999", null, true, null);
+        Cliente clienteClone = new Cliente(1L, "Carlos Clone", "carlos@email.com", "111", "999", null, true, null);
+
+        Pedido pedido = new Pedido();
+        pedido.setCliente(clienteOriginal);
+
+        // Segunda chamada com instância clone de mesmo ID
+        assertDoesNotThrow(() -> pedido.setCliente(clienteClone));
+
+        // Asserções estritas exigidas:
+        assertSame(clienteOriginal, pedido.getCliente(), "A referência do pedido deve continuar sendo o clienteOriginal");
+        assertTrue(clienteOriginal.getPedidos().contains(pedido), "clienteOriginal deve conter o pedido em sua coleção");
+        assertFalse(clienteClone.getPedidos().contains(pedido), "clienteClone NÃO deve conter o pedido em sua coleção");
+    }
+
+    @Test
+    @DisplayName("Deve lançar RegraNegocioException ao tentar transferir pedido para outro cliente")
+    void setCliente_ComClientesDiferentes_DeveLancarExcecao() {
+        Cliente clienteA = new Cliente(1L, "Cliente A", "a@email.com", "111", "999", null, true, null);
+        Cliente clienteB = new Cliente(2L, "Cliente B", "b@email.com", "222", "888", null, true, null);
+
+        Pedido pedido = new Pedido();
+        pedido.setCliente(clienteA);
+
+        assertThrows(RegraNegocioException.class, () -> pedido.setCliente(clienteB));
+        assertSame(clienteA, pedido.getCliente());
+    }
+
+    @Test
+    @DisplayName("Deve rejeitar cliente nulo e proteger encapsulamento da lista de pedidos")
+    void regrasAssociacao_RejeitaNuloEImutabilidadeColecao() {
+        Pedido pedido = new Pedido();
+        assertThrows(IllegalArgumentException.class, () -> pedido.setCliente(null));
+
+        Cliente cliente = new Cliente(1L, "Carlos", "carlos@email.com", "111", "999", null, true, null);
+        assertThrows(IllegalArgumentException.class, () -> cliente.adicionarPedido(null));
+
+        cliente.adicionarPedido(pedido);
+        List<Pedido> lista = cliente.getPedidos();
+        assertThrows(UnsupportedOperationException.class, () -> lista.add(new Pedido()));
+    }
+
+    @Test
+    @DisplayName("Deve validar regras de criação de ItemPedido e imutabilidade de prato")
+    void itemPedido_DeveValidarRegrasDeNegocio() {
+        // 1. Rejeita prato nulo
+        assertThrows(IllegalArgumentException.class, () -> new ItemPedido(null, 2, 25.0));
+
+        // 2. Rejeita quantidade nula, negativa ou zero
+        assertThrows(IllegalArgumentException.class, () -> new ItemPedido(pratoDisponivel, null, 25.0));
+        assertThrows(IllegalArgumentException.class, () -> new ItemPedido(pratoDisponivel, 0, 25.0));
+        assertThrows(IllegalArgumentException.class, () -> new ItemPedido(pratoDisponivel, -3, 25.0));
+
+        // 3. Rejeita preço unitário nulo, negativo ou zero
+        assertThrows(IllegalArgumentException.class, () -> new ItemPedido(pratoDisponivel, 2, null));
+        assertThrows(IllegalArgumentException.class, () -> new ItemPedido(pratoDisponivel, 2, 0.0));
+        assertThrows(IllegalArgumentException.class, () -> new ItemPedido(pratoDisponivel, 2, -10.0));
+
+        // 4. Criação válida e congelamento de snapshot
+        ItemPedido item = new ItemPedido(pratoDisponivel, 2, 25.0);
+        assertEquals(50.0, item.getSubtotal());
+        assertEquals("Salada Fit", item.getPratoNome());
+        assertSame(pratoDisponivel, item.getPrato());
+
+        // 5. Simula reajuste do prato no catálogo e comprova que o snapshot do item não muda
+        pratoDisponivel.setPreco(45.0);
+        assertEquals(25.0, item.getPrecoUnitario());
+        assertEquals(50.0, item.getSubtotal());
+
+        // 6. Idempotência em setPrato com mesma instância ou clone
+        assertDoesNotThrow(() -> item.setPrato(pratoDisponivel));
+        Prato pratoClone = new Prato(10L, "Salada Fit Clone", "Outra", 50.0, 300, true, null, 10);
+        assertDoesNotThrow(() -> item.setPrato(pratoClone));
+
+        // 7. Bloqueio ao tentar trocar para outro prato de ID diferente
+        Categoria cat = new Categoria(5L, "Sobremesas", "");
+        Prato outroPrato = new Prato(99L, "Torta Fit", "Torta", 18.0, 200, true, cat, 5);
+        assertThrows(RegraNegocioException.class, () -> item.setPrato(outroPrato));
     }
 }
